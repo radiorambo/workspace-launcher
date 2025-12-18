@@ -1,0 +1,6 @@
+# Bun
+node_modules/
+bun.lockb
+
+# Project
+workspaces-config.json
