@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 /**
  * Workspace Launcher Script (Bun.js Version)
- * 
+ *
  * An interactive CLI tool to launch multiple workspaces including
  * websites, PWA apps, PDFs, and system applications.
- * 
+ *
  * @author Zero
  * @version 0.1.0
  */
@@ -36,11 +36,11 @@ const print = {
 // CONFIGURATION
 // ============================================================
 
-const CONFIG_PATH = join(dirname(process.argv[1]), "workspaces-config.json");
+const CONFIG_PATH = join(dirname(process.argv[1]), "workspaces-config.toml");
 
 /**
- * Loads the workspace configuration from the JSON file.
- * 
+ * Loads the workspace configuration from the TOML file.
+ *
  * @returns {Object} The parsed configuration object.
  * @throws {Error} If the config file is not found.
  */
@@ -49,16 +49,16 @@ function loadConfig() {
     print.error(`Config file not found: ${CONFIG_PATH}`);
     process.exit(1);
   }
-  return JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+  return Bun.TOML.parse(readFileSync(CONFIG_PATH, "utf-8"));
 }
 
 /**
- * Saves the workspace configuration to the JSON file.
- * 
+ * Saves the workspace configuration to the TOML file.
+ *
  * @param {Object} config - The configuration object to save.
  */
 function saveConfig(config) {
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  writeFileSync(CONFIG_PATH, Bun.TOML.stringify(config));
   print.status("Configuration saved");
 }
 
@@ -68,7 +68,7 @@ function saveConfig(config) {
 
 /**
  * Launches a list of websites in a new Brave browser window.
- * 
+ *
  * @param {string[]} websites - Array of website URLs.
  * @param {string} [windowName="Learning"] - Name for the browser window.
  */
@@ -84,7 +84,7 @@ async function launchWebsites(websites, windowName = "Learning") {
 
 /**
  * Launches a list of PWA apps using Brave browser.
- * 
+ *
  * @param {Object[]} pwaApps - Array of PWA app objects { name, id }.
  */
 async function launchPWAApps(pwaApps) {
@@ -102,7 +102,7 @@ async function launchPWAApps(pwaApps) {
 
 /**
  * Launches a list of website apps (site-as-app) using Brave browser.
- * 
+ *
  * @param {Object[]} websiteApps - Array of website app objects { name, url }.
  */
 async function launchWebsiteApps(websiteApps) {
@@ -120,7 +120,7 @@ async function launchWebsiteApps(websiteApps) {
 
 /**
  * Launches a list of PDF files using GNOME Papers (Evince).
- * 
+ *
  * @param {Object[]} pdfs - Array of PDF objects { name, path, page }.
  */
 async function launchPDFs(pdfs) {
@@ -148,7 +148,7 @@ async function launchPDFs(pdfs) {
 
 /**
  * Launches a list of system applications via shell commands.
- * 
+ *
  * @param {string[]} systemApps - Array of shell commands.
  */
 async function launchSystemApps(systemApps) {
@@ -172,7 +172,7 @@ async function launchSystemApps(systemApps) {
 
 /**
  * Orchestrates the launching of all components in a workspace.
- * 
+ *
  * @param {Object} workspace - The workspace object to launch.
  */
 async function launchWorkspace(workspace) {
@@ -239,7 +239,9 @@ async function selectAndLaunchWorkspaces() {
   if (launchedWorkspaces.length > 0) {
     print.info("Successfully launched:");
     launchedWorkspaces.forEach((workspace) => {
-      console.log(`  ${colors.green}•${colors.reset} ${workspace.id}. ${workspace.name}`);
+      console.log(
+        `  ${colors.green}•${colors.reset} ${workspace.id}. ${workspace.name}`
+      );
     });
   }
   console.log("");
@@ -341,15 +343,16 @@ async function addWorkspace() {
   print.info("Workspace added successfully:");
   console.log(`  ${colors.green}•${colors.reset} ${newId}. ${name}`);
   console.log("");
-  
+
   // Show summary of what was added
   const summary = [];
   if (websites.length > 0) summary.push(`${websites.length} website(s)`);
   if (pwaApps.length > 0) summary.push(`${pwaApps.length} PWA app(s)`);
-  if (websiteApps.length > 0) summary.push(`${websiteApps.length} website app(s)`);
+  if (websiteApps.length > 0)
+    summary.push(`${websiteApps.length} website app(s)`);
   if (pdfs.length > 0) summary.push(`${pdfs.length} PDF(s)`);
   if (systemApps.length > 0) summary.push(`${systemApps.length} system app(s)`);
-  
+
   if (summary.length > 0) {
     print.status(`Added: ${summary.join(", ")}`);
   }
@@ -358,7 +361,7 @@ async function addWorkspace() {
 
 /**
  * Helper function to get user input from stdin.
- * 
+ *
  * @returns {Promise<string>} The user's input.
  */
 async function getUserInput() {
@@ -419,7 +422,9 @@ async function deleteWorkspace() {
     console.log("");
     print.info("Successfully deleted:");
     deletedWorkspaces.reverse().forEach((workspace) => {
-      console.log(`  ${colors.green}•${colors.reset} ${workspace.id}. ${workspace.name}`);
+      console.log(
+        `  ${colors.green}•${colors.reset} ${workspace.id}. ${workspace.name}`
+      );
     });
   }
 
@@ -449,7 +454,7 @@ async function showMenu() {
   console.log("  1. Launch workspace");
   console.log("  2. Add new workspace");
   console.log("  3. Delete workspace");
-  console.log("  4. View config file");
+  console.log("  4. View TOML config file");
   console.log("  5. Exit");
   console.log("");
   process.stdout.write(`${colors.yellow}Select option: ${colors.reset}`);

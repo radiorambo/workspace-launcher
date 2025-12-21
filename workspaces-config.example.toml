@@ -1,0 +1,25 @@
+# Example Track
+[[workspaces]]
+id = 1
+name = "Example Track"
+websites = [
+  "https://www.google.com",
+  "https://github.com"
+]
+systemApps = [
+  "code .",
+  "gnome-terminal"
+]
+
+[workspaces.pwaApps]
+name = "Example PWA"
+id = "example-app-id"
+
+[workspaces.websiteApps]
+name = "Example Site App"
+url = "https://example.com"
+
+[workspaces.pdfs]
+name = "Example PDF"
+path = "/path/to/your/document.pdf"
+page = 1
