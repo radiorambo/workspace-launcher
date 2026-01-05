@@ -5,6 +5,25 @@
 #   - id: unique number
 #   - name: display name
 #   - commands: array of shell commands to execute
+#   - bookmarks_folder: (optional) path to Chrome bookmarks folder to open
+#
+# Global settings:
+#   [settings]
+#   bookmarks_file = "/path/to/Bookmarks"  # Required if using bookmarks_folder
+
+[settings]
+# REQUIRED: Path to your browser's bookmarks file (if using bookmarks_folder feature)
+# Common paths:
+#   Chrome:   ~/.config/google-chrome/Default/Bookmarks
+#   Chromium: ~/.config/chromium/Default/Bookmarks
+#   Brave:    ~/.config/BraveSoftware/Brave-Browser/Default/Bookmarks
+bookmarks_file = "/home/user/.config/google-chrome/Default/Bookmarks"
+
+# OPTIONAL: Custom command to open bookmark URLs
+# If not set, defaults to "xdg-open"
+# The URL will be appended to the end of this command
+# Example: "flatpak run com.brave.Browser --profile-directory=Default --new-window"
+bookmarks_open_in_browser = "flatpak run com.brave.Browser --profile-directory=Default --new-window"
 
 [[workspaces]]
 id = 1
@@ -37,3 +56,13 @@ commands = [
 id = 2
 name = "Empty Workspace"
 commands = []
+
+[[workspaces]]
+id = 3
+name = "Workspace with Bookmarks"
+commands = [
+  "code ~/projects/my-project",
+]
+# Opens all bookmarks from "Bookmarks bar/test" folder in Chrome
+# Folder path format: "Bookmarks bar/folder/subfolder" or "Other bookmarks/folder"
+bookmarks_folder = "Bookmarks bar/test"
