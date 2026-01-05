@@ -2,16 +2,15 @@
 /**
  * Workspace Launcher Script (Bun.js Version)
  *
- * An interactive CLI tool to launch multiple workspaces including
- * websites, PWA apps, PDFs, and system applications.
+ * An interactive CLI tool to launch workspaces with custom commands.
  *
  * @author Zero
- * @version 0.1.0
+ * @version 0.2.0
  */
 
 import { $ } from "bun";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { join } from "path";
 
 // Colors for terminal output
 const colors = {
@@ -36,7 +35,11 @@ const print = {
 // CONFIGURATION
 // ============================================================
 
-const CONFIG_PATH = join(dirname(process.argv[1]), "workspaces-config.toml");
+const CONFIG_DIR = join(
+  process.env.XDG_CONFIG_HOME || join(process.env.HOME, ".config"),
+  "workspace-launcher"
+);
+const CONFIG_PATH = join(CONFIG_DIR, "config.toml");
 
 /**
  * Loads the workspace configuration from the TOML file.
@@ -47,6 +50,9 @@ const CONFIG_PATH = join(dirname(process.argv[1]), "workspaces-config.toml");
 function loadConfig() {
   if (!existsSync(CONFIG_PATH)) {
     print.error(`Config file not found: ${CONFIG_PATH}`);
+    print.info(`Create directory and copy example config:`);
+    console.log(`  mkdir -p ${CONFIG_DIR}`);
+    console.log(`  cp workspaces-config.example.toml ${CONFIG_PATH}`);
     process.exit(1);
   }
   return Bun.TOML.parse(readFileSync(CONFIG_PATH, "utf-8"));
@@ -58,6 +64,9 @@ function loadConfig() {
  * @param {Object} config - The configuration object to save.
  */
 function saveConfig(config) {
+  if (!existsSync(CONFIG_DIR)) {
+    mkdirSync(CONFIG_DIR, { recursive: true });
+  }
   writeFileSync(CONFIG_PATH, Bun.TOML.stringify(config));
   print.status("Configuration saved");
 }
@@ -67,111 +76,7 @@ function saveConfig(config) {
 // ============================================================
 
 /**
- * Launches a list of websites in a new Brave browser window.
- *
- * @param {string[]} websites - Array of website URLs.
- * @param {string} [windowName="Learning"] - Name for the browser window.
- */
-async function launchWebsites(websites, windowName = "Learning") {
-  if (!websites || websites.length === 0) return;
-
-  print.info("Launching websites...");
-  await $`flatpak run com.brave.Browser --profile-directory=Default --new-window --window-name=${windowName} ${websites}`
-    .nothrow()
-    .quiet();
-  print.status(`Opened ${websites.length} website(s)`);
-}
-
-/**
- * Launches a list of PWA apps using Brave browser.
- *
- * @param {Object[]} pwaApps - Array of PWA app objects { name, id }.
- */
-async function launchPWAApps(pwaApps) {
-  if (!pwaApps || pwaApps.length === 0) return;
-
-  print.info("Launching PWA apps...");
-  for (const app of pwaApps) {
-    await $`flatpak run --command=brave com.brave.Browser --profile-directory=Default --app-id=${app.id}`
-      .nothrow()
-      .quiet();
-    print.status(`Launched PWA: ${app.name}`);
-    await Bun.sleep(500);
-  }
-}
-
-/**
- * Launches a list of website apps (site-as-app) using Brave browser.
- *
- * @param {Object[]} websiteApps - Array of website app objects { name, url }.
- */
-async function launchWebsiteApps(websiteApps) {
-  if (!websiteApps || websiteApps.length === 0) return;
-
-  print.info("Launching website apps...");
-  for (const app of websiteApps) {
-    await $`flatpak run --command=brave com.brave.Browser --profile-directory=Default --app=${app.url}`
-      .nothrow()
-      .quiet();
-    print.status(`Launched: ${app.name}`);
-    await Bun.sleep(500);
-  }
-}
-
-/**
- * Launches a list of PDF files using GNOME Papers (Evince).
- *
- * @param {Object[]} pdfs - Array of PDF objects { name, path, page }.
- */
-async function launchPDFs(pdfs) {
-  if (!pdfs || pdfs.length === 0) return;
-
-  print.info("Launching PDFs...");
-  for (const pdf of pdfs) {
-    if (!existsSync(pdf.path)) {
-      print.error(`PDF not found: ${pdf.path}`);
-      continue;
-    }
-
-    if (pdf.page) {
-      await $`flatpak run org.gnome.Papers --page-index=${pdf.page} ${pdf.path}`
-        .nothrow()
-        .quiet();
-      print.status(`Opened: ${pdf.name} (page ${pdf.page})`);
-    } else {
-      await $`flatpak run org.gnome.Papers ${pdf.path}`.nothrow().quiet();
-      print.status(`Opened: ${pdf.name}`);
-    }
-    await Bun.sleep(500);
-  }
-}
-
-/**
- * Launches a list of system applications via shell commands.
- *
- * @param {string[]} systemApps - Array of shell commands.
- */
-async function launchSystemApps(systemApps) {
-  if (!systemApps || systemApps.length === 0) return;
-
-  print.info("Launching system apps...");
-  for (const app of systemApps) {
-    if (!app || app.trim().startsWith("#")) continue;
-
-    try {
-      // Execute the command directly using Bun shell
-      await $`${app.split(" ")}`.nothrow().quiet();
-      const displayName = app.length > 50 ? app.substring(0, 50) + "..." : app;
-      print.status(`Launched: ${displayName}`);
-      await Bun.sleep(400);
-    } catch (error) {
-      print.error(`Failed to launch: ${app}`);
-    }
-  }
-}
-
-/**
- * Orchestrates the launching of all components in a workspace.
+ * Launches all commands in a workspace.
  *
  * @param {Object} workspace - The workspace object to launch.
  */
@@ -180,11 +85,18 @@ async function launchWorkspace(workspace) {
   print.info(`Starting: ${workspace.name}`);
   console.log("");
 
-  await launchWebsites(workspace.websites, workspace.name.replace(/\s+/g, "-"));
-  await launchPWAApps(workspace.pwaApps);
-  await launchWebsiteApps(workspace.websiteApps);
-  await launchPDFs(workspace.pdfs);
-  await launchSystemApps(workspace.systemApps);
+  const commands = workspace.commands || [];
+  for (const cmd of commands) {
+    if (!cmd || cmd.trim().startsWith("#")) continue;
+
+    try {
+      await $`${cmd.split(" ")}`.nothrow().quiet();
+      const displayName = cmd.length > 50 ? cmd.substring(0, 50) + "..." : cmd;
+      print.status(`Launched: ${displayName}`);
+    } catch (error) {
+      print.error(`Failed to launch: ${cmd}`);
+    }
+  }
 }
 
 // ============================================================
@@ -268,72 +180,20 @@ async function addWorkspace() {
   process.stdout.write(`${colors.cyan}Workspace name: ${colors.reset}`);
   const name = await getUserInput();
 
-  // Get websites
-  const websites = [];
-  print.cyan("Enter websites (press Enter with empty line to finish):");
-  while (true) {
-    process.stdout.write(`  URL: `);
-    const url = await getUserInput();
-    if (!url) break;
-    websites.push(url);
-  }
-
-  // Get PWA apps
-  const pwaApps = [];
-  print.cyan("PWA apps (press Enter with empty name to finish):");
-  while (true) {
-    process.stdout.write(`  App name: `);
-    const appName = await getUserInput();
-    if (!appName) break;
-    process.stdout.write(`  App ID: `);
-    const appId = await getUserInput();
-    pwaApps.push({ name: appName, id: appId });
-  }
-
-  // Get website apps
-  const websiteApps = [];
-  print.cyan("Website apps (press Enter with empty name to finish):");
-  while (true) {
-    process.stdout.write(`  App name: `);
-    const appName = await getUserInput();
-    if (!appName) break;
-    process.stdout.write(`  App URL: `);
-    const appUrl = await getUserInput();
-    websiteApps.push({ name: appName, url: appUrl });
-  }
-
-  // Get PDFs
-  const pdfs = [];
-  print.cyan("PDFs (press Enter with empty name to finish):");
-  while (true) {
-    process.stdout.write(`  PDF name: `);
-    const pdfName = await getUserInput();
-    if (!pdfName) break;
-    process.stdout.write(`  PDF path: `);
-    const pdfPath = await getUserInput();
-    process.stdout.write(`  Page number (optional): `);
-    const page = await getUserInput();
-    pdfs.push({ name: pdfName, path: pdfPath, page: page || null });
-  }
-
-  // Get system apps
-  const systemApps = [];
-  print.cyan("System apps (press Enter with empty command to finish):");
+  // Get commands
+  const commands = [];
+  print.cyan("Enter commands (press Enter with empty line to finish):");
   while (true) {
     process.stdout.write(`  Command: `);
     const cmd = await getUserInput();
     if (!cmd) break;
-    systemApps.push(cmd);
+    commands.push(cmd);
   }
 
   const newWorkspace = {
     id: newId,
     name,
-    websites,
-    pwaApps,
-    websiteApps,
-    pdfs,
-    systemApps,
+    commands,
   };
 
   config.workspaces.push(newWorkspace);
@@ -342,19 +202,8 @@ async function addWorkspace() {
   console.log("");
   print.info("Workspace added successfully:");
   console.log(`  ${colors.green}•${colors.reset} ${newId}. ${name}`);
-  console.log("");
-
-  // Show summary of what was added
-  const summary = [];
-  if (websites.length > 0) summary.push(`${websites.length} website(s)`);
-  if (pwaApps.length > 0) summary.push(`${pwaApps.length} PWA app(s)`);
-  if (websiteApps.length > 0)
-    summary.push(`${websiteApps.length} website app(s)`);
-  if (pdfs.length > 0) summary.push(`${pdfs.length} PDF(s)`);
-  if (systemApps.length > 0) summary.push(`${systemApps.length} system app(s)`);
-
-  if (summary.length > 0) {
-    print.status(`Added: ${summary.join(", ")}`);
+  if (commands.length > 0) {
+    print.status(`Added: ${commands.length} command(s)`);
   }
   console.log("");
 }
@@ -447,9 +296,7 @@ async function deleteWorkspace() {
  */
 async function showMenu() {
   console.log("");
-  print.cyan("╔════════════════════════════════════╗");
-  print.cyan("║   Workspace Launcher    ║");
-  print.cyan("╔════════════════════════════════════╝");
+  print.cyan("Workspace Launcher");
   console.log("");
   console.log("  1. Launch workspace");
   console.log("  2. Add new workspace");
@@ -501,16 +348,16 @@ if (args.includes("--help") || args.includes("-h")) {
 Workspace Launcher
 
 Usage:
-  bun run daily-learning.js              Show interactive menu
-  bun run daily-learning.js launch       Launch workspace (supports multiple: 1,3,5)
-  bun run daily-learning.js add          Add a new workspace
-  bun run daily-learning.js delete       Delete workspace (supports multiple: 1,3,5)
+  wl                  Show interactive menu
+  wl launch           Launch workspace (supports multiple: 1,3,5)
+  wl add              Add a new workspace
+  wl delete           Delete workspace (supports multiple: 1,3,5)
 
 Examples:
-  ./launch-workspace                        Interactive menu
-  ./launch-workspace launch                 Select and launch workspace
-  ./launch-workspace add                    Add a new workspace interactively
-  ./launch-workspace delete                 Delete one or more workspaces
+  wl                  Interactive menu
+  wl launch           Select and launch workspace
+  wl add              Add a new workspace interactively
+  wl delete           Delete one or more workspaces
 
 Config file: ${CONFIG_PATH}
   `);

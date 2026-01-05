@@ -1,25 +1,39 @@
-# Example Track
+# Workspace Launcher Configuration
+# Copy this file to workspaces-config.toml and customize it
+#
+# Each workspace has:
+#   - id: unique number
+#   - name: display name
+#   - commands: array of shell commands to execute
+
 [[workspaces]]
 id = 1
-name = "Example Track"
-websites = [
-  "https://www.google.com",
-  "https://github.com"
+name = "Example Workspace"
+commands = [
+  # Open websites in browser
+  "flatpak run com.brave.Browser --profile-directory=Default --new-window https://github.com",
+  "flatpak run com.brave.Browser --profile-directory=Default --new-window https://stackoverflow.com",
+
+  # Open PDF files (with optional page number)
+  "flatpak run org.gnome.Papers ~/Books/programming-book.pdf",
+  "flatpak run org.gnome.Papers --page-index=42 ~/Books/another-book.pdf",
+
+  # Open Obsidian vault/note
+  "flatpak run md.obsidian.Obsidian obsidian://open?vault=Notes",
+  "flatpak run md.obsidian.Obsidian obsidian://open?vault=Notes&file=Projects%2FIdeas",
+
+  # Launch PWA apps (installed via Brave)
+  "flatpak run --command=brave com.brave.Browser --profile-directory=Default --app-id=abcdefghijklmnop",
+
+  # Open website as app (without browser UI)
+  "flatpak run --command=brave com.brave.Browser --profile-directory=Default --app=https://chat.openai.com",
+
+  # Launch any system application
+  "code ~/projects/my-app",
+  "gnome-terminal",
 ]
-systemApps = [
-  "code .",
-  "gnome-terminal"
-]
 
-[workspaces.pwaApps]
-name = "Example PWA"
-id = "example-app-id"
-
-[workspaces.websiteApps]
-name = "Example Site App"
-url = "https://example.com"
-
-[workspaces.pdfs]
-name = "Example PDF"
-path = "/path/to/your/document.pdf"
-page = 1
+[[workspaces]]
+id = 2
+name = "Empty Workspace"
+commands = []
