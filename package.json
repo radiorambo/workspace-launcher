@@ -1,0 +1,24 @@
+{
+  "name": "workspace-launcher",
+  "version": "0.3.0",
+  "description": "An interactive CLI tool to launch workspaces with custom commands",
+  "main": "workspace-launcher.js",
+  "bin": {
+    "wl": "./workspace-launcher.js"
+  },
+  "scripts": {
+    "start": "bun run workspace-launcher.js",
+    "dev": "bun run --watch workspace-launcher.js"
+  },
+  "keywords": [
+    "workspace",
+    "launcher",
+    "cli",
+    "productivity"
+  ],
+  "author": "Zero",
+  "license": "MIT",
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

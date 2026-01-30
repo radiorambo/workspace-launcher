@@ -1,0 +1,241 @@
+/**
+ * Workspace launcher functions
+ */
+
+import { $ } from "bun";
+import { readFileSync } from "fs";
+import { print, CONFIG_PATH, stripInlineComments } from "./utils.js";
+import { getBookmarksFilePath, getBookmarksFromFolder } from "./bookmarks.js";
+
+// Global flag for dry run mode
+let isDryRun = false;
+// Global flag for verbose mode
+let isVerbose = false;
+
+/**
+ * Sets the dry run mode
+ * @param {boolean} value - Whether to enable dry run
+ */
+export function setDryRun(value) {
+  isDryRun = value;
+}
+
+/**
+ * Sets the verbose mode
+ * @param {boolean} value - Whether to enable verbose output
+ */
+export function setVerbose(value) {
+  isVerbose = value;
+}
+
+/**
+ * Executes a command or logs it in dry run mode
+ * @param {string[]} commandParts - Command parts to execute
+ * @param {string} displayName - Name to display for the command
+ */
+async function executeCommand(commandParts, displayName) {
+  if (isDryRun) {
+    print.dryRun(`Would execute: ${commandParts.join(" ")}`);
+    return;
+  }
+  
+  try {
+    const shell = $`${commandParts}`;
+    if (!isVerbose) {
+      shell.nothrow().quiet();
+    } else {
+      shell.nothrow();
+    }
+    await shell;
+    print.status(`Launched: ${displayName}`);
+  } catch (error) {
+    print.error(`Failed to launch: ${displayName}`);
+    if (isVerbose) {
+      console.error(error);
+    }
+  }
+}
+
+/**
+ * Launches all commands in a workspace.
+ * @param {Object} workspace - The workspace object to launch.
+ * @param {Object} config - The configuration object.
+ */
+export async function launchWorkspace(workspace, config) {
+  console.log("");
+  print.info(`Starting: ${workspace.name}`);
+  console.log("");
+
+  const commands = workspace.commands || [];
+  for (const cmd of commands) {
+    // Skip empty lines and lines starting with #
+    if (!cmd || cmd.trim().startsWith("#")) continue;
+    
+    // Strip inline comments
+    const cleanCmd = stripInlineComments(cmd);
+    if (!cleanCmd) continue;
+
+    // Use bash -c to properly handle commands with spaces and special characters
+    try {
+      if (isDryRun) {
+        print.dryRun(`Would execute: ${cleanCmd}`);
+        const displayName = cleanCmd.length > 50 ? cleanCmd.substring(0, 50) + "..." : cleanCmd;
+        print.status(`Planned: ${displayName}`);
+      } else {
+        // Use bash -c for proper shell command parsing
+        const shell = $`bash -c ${cleanCmd}`;
+        if (!isVerbose) {
+          shell.nothrow().quiet();
+        } else {
+          shell.nothrow();
+        }
+        await shell;
+        const displayName = cleanCmd.length > 50 ? cleanCmd.substring(0, 50) + "..." : cleanCmd;
+        print.status(`Launched: ${displayName}`);
+      }
+    } catch (error) {
+      print.error(`Failed to launch: ${cleanCmd}`);
+      if (error.message?.includes("command not found")) {
+        print.info("Tip: Ensure the application is installed");
+      }
+      if (isVerbose) {
+        console.error(error);
+      }
+    }
+  }
+
+  // Handle bookmarks folder if specified
+  if (workspace.bookmarks_folder) {
+    const bookmarksPath = getBookmarksFilePath(config);
+    
+    if (!bookmarksPath) {
+      print.error("Bookmarks file path not configured in settings");
+      print.info("Add 'bookmarks_file' in [settings] section of config");
+      return;
+    }
+
+    const bookmarks = getBookmarksFromFolder(bookmarksPath, workspace.bookmarks_folder);
+
+    if (bookmarks.length > 0) {
+      print.info(`Opening ${bookmarks.length} bookmark(s) from: ${workspace.bookmarks_folder}`);
+
+      // Get browser command from config, fallback to xdg-open
+      const browserCommand = config.settings?.bookmarks_open_in_browser || "xdg-open";
+      
+      // Split command and remove empty parts (handles multiple spaces)
+      const commandParts = browserCommand.split(" ").filter((p) => p.trim() !== "");
+      const isXdgOpen = commandParts[0].endsWith("xdg-open");
+
+      if (isDryRun) {
+        if (isXdgOpen) {
+          for (let i = 0; i < bookmarks.length; i++) {
+            const bookmark = bookmarks[i];
+            print.progress(i + 1, bookmarks.length, `[DRY RUN] Would open: ${bookmark.name}`);
+          }
+        } else {
+          print.dryRun(`Would open ${bookmarks.length} bookmarks as tabs`);
+          for (let i = 0; i < bookmarks.length; i++) {
+            const bookmark = bookmarks[i];
+            print.progress(i + 1, bookmarks.length, `[DRY RUN] ${bookmark.name}`);
+          }
+        }
+      } else {
+        try {
+          if (isXdgOpen) {
+            // xdg-open only supports one URL at a time
+            for (let i = 0; i < bookmarks.length; i++) {
+              const bookmark = bookmarks[i];
+              const fullCommand = [...commandParts, bookmark.url];
+              
+              const shell = $`${fullCommand}`;
+              if (!isVerbose) {
+                shell.nothrow().quiet();
+              } else {
+                shell.nothrow();
+              }
+              await shell;
+              
+              const displayName = bookmark.name.length > 40
+                ? bookmark.name.substring(0, 40) + "..."
+                : bookmark.name;
+              print.progress(i + 1, bookmarks.length, `Opened: ${displayName}`);
+            }
+          } else {
+            // Other browsers usually support multiple URLs (opening as tabs)
+            const urls = bookmarks.map(b => b.url);
+            const fullCommand = [...commandParts, ...urls];
+            
+            const shell = $`${fullCommand}`;
+            if (!isVerbose) {
+              shell.nothrow().quiet();
+            } else {
+              shell.nothrow();
+            }
+            await shell;
+
+            // Print status for each bookmark
+            for (let i = 0; i < bookmarks.length; i++) {
+              const bookmark = bookmarks[i];
+              const displayName = bookmark.name.length > 40
+                ? bookmark.name.substring(0, 40) + "..."
+                : bookmark.name;
+              print.progress(i + 1, bookmarks.length, `Opened: ${displayName}`);
+            }
+          }
+        } catch (error) {
+          print.error(`Failed to open bookmarks`);
+          print.info("Tip: Check your browser command in config.toml");
+          if (isVerbose) {
+            console.error(error);
+          }
+        }
+      }
+    } else if (workspace.bookmarks_folder) {
+      print.error(`No bookmarks found in folder: ${workspace.bookmarks_folder}`);
+      print.info("Tip: Check the folder path in your config");
+    }
+  }
+}
+
+/**
+ * Opens the config file in the default editor
+ */
+export async function openConfigInEditor() {
+  print.info(`Opening config file: ${CONFIG_PATH}`);
+  
+  if (isDryRun) {
+    print.dryRun(`Would open: ${CONFIG_PATH}`);
+    return;
+  }
+  
+  try {
+    // Try common editors
+    const editors = ["$EDITOR", "code", "nano", "vim", "gedit", "gnome-text-editor"];
+    
+    for (const editor of editors) {
+      try {
+        if (editor === "$EDITOR") {
+          if (process.env.EDITOR) {
+            await $`${process.env.EDITOR} ${CONFIG_PATH}`.nothrow();
+            print.status("Config opened in editor");
+            return;
+          }
+        } else {
+          await $`${editor} ${CONFIG_PATH}`.nothrow().quiet();
+          print.status("Config opened in editor");
+          return;
+        }
+      } catch {
+        // Try next editor
+        continue;
+      }
+    }
+    
+    // Fallback: just display the file
+    print.info("Could not open editor. Displaying config file:");
+    console.log(readFileSync(CONFIG_PATH, "utf-8"));
+  } catch (error) {
+    print.error("Failed to open config file");
+    console.log(readFileSync(CONFIG_PATH, "utf-8"));
+  }
+}
