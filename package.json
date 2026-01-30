@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "bun run workspace-launcher.js",
-    "dev": "bun run --watch workspace-launcher.js"
+    "dev": "bun run --watch workspace-launcher.js",
+    "build": "bun build ./workspace-launcher.js --compile --outfile workspace-launcher"
   },
   "keywords": [
     "workspace",
