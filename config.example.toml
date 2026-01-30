@@ -23,7 +23,7 @@ bookmarks_file = "/home/user/.config/google-chrome/Default/Bookmarks"
 # If not set, defaults to "xdg-open"
 # The URL will be appended to the end of this command
 # Example: "flatpak run com.brave.Browser --profile-directory=Default --new-window"
-bookmarks_open_in_browser = "flatpak run com.brave.Browser --profile-directory=Default --new-window"
+bookmarks_open_in = "flatpak run com.brave.Browser --profile-directory=Default --new-window"
 
 [[workspaces]]
 id = 1

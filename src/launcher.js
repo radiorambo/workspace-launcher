@@ -120,7 +120,7 @@ export async function launchWorkspace(workspace, config) {
       print.info(`Opening ${bookmarks.length} bookmark(s) from: ${workspace.bookmarks_folder}`);
 
       // Get browser command from config, fallback to xdg-open
-      const browserCommand = config.settings?.bookmarks_open_in_browser || "xdg-open";
+      const browserCommand = config.settings?.bookmarks_open_in || "xdg-open";
       
       // Split command and remove empty parts (handles multiple spaces)
       const commandParts = browserCommand.split(" ").filter((p) => p.trim() !== "");

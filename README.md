@@ -91,7 +91,7 @@ On first run, if no config exists, the tool will automatically copy from `config
 [settings]
 # Path to your browser's bookmarks file (supports environment variables)
 bookmarks_file = "${HOME}/.config/BraveSoftware/Brave-Browser/Default/Bookmarks"
-bookmarks_open_in_browser = "flatpak run com.brave.Browser --profile-directory=Default --new-window"
+bookmarks_open_in = "flatpak run com.brave.Browser --profile-directory=Default --new-window"
 
 [[workspaces]]
 id = 1

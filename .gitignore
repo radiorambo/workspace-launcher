@@ -4,3 +4,5 @@ bun.lockb
 
 # Project
 config.toml
+# Binary (built via GitHub Actions)
+workspace-launcher
