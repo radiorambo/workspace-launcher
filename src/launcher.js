@@ -224,12 +224,14 @@ export async function launchWorkspace(workspace, config) {
 
 /**
  * Opens the config file in the default editor
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export async function openConfigInEditor() {
-  print.info(`Opening config file: ${CONFIG_PATH}`);
+export async function openConfigInEditor(customConfigPath = null) {
+  const configPath = customConfigPath || CONFIG_PATH;
+  print.info(`Opening config file: ${configPath}`);
   
   if (isDryRun) {
-    print.dryRun(`Would open: ${CONFIG_PATH}`);
+    print.dryRun(`Would open: ${configPath}`);
     return;
   }
   
@@ -241,12 +243,12 @@ export async function openConfigInEditor() {
       try {
         if (editor === "$EDITOR") {
           if (process.env.EDITOR) {
-            await $`${process.env.EDITOR} ${CONFIG_PATH}`.nothrow();
+            await $`${process.env.EDITOR} ${configPath}`.nothrow();
             print.status("Config opened in editor");
             return;
           }
         } else {
-          await $`${editor} ${CONFIG_PATH}`.nothrow().quiet();
+          await $`${editor} ${configPath}`.nothrow().quiet();
           print.status("Config opened in editor");
           return;
         }
@@ -258,9 +260,9 @@ export async function openConfigInEditor() {
     
     // Fallback: just display the file
     print.info("Could not open editor. Displaying config file:");
-    console.log(readFileSync(CONFIG_PATH, "utf-8"));
+    console.log(readFileSync(configPath, "utf-8"));
   } catch (error) {
     print.error("Failed to open config file");
-    console.log(readFileSync(CONFIG_PATH, "utf-8"));
+    console.log(readFileSync(configPath, "utf-8"));
   }
 }

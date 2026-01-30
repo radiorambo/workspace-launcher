@@ -29,6 +29,7 @@ export const print = {
     console.log(`${colors.blue}[${num}]${colors.reset} ${color}${msg}${colors.reset}`);
   },
   cyan: (msg) => console.log(`${colors.cyan}${msg}${colors.reset}`),
+  gray: (msg) => console.log(`${colors.gray}${msg}${colors.reset}`),
   progress: (current, total, msg) => {
     console.log(`${colors.magenta}[${current}/${total}]${colors.reset} ${msg}`);
   },
@@ -118,40 +119,53 @@ export function autoCreateConfig() {
 
 /**
  * Loads the workspace configuration from the TOML file.
+ * @param {string} customConfigPath - Optional custom config file path
  * @returns {Object} The parsed configuration object.
  * @throws {Error} If the config file is not found.
  */
-export function loadConfig() {
-  // Try to auto-create config from example
-  const wasCreated = autoCreateConfig();
-  if (wasCreated) {
-    console.log("");
-    print.info(`Created config file from example: ${CONFIG_PATH}`);
-    print.info("Please edit the config file to customize your workspaces.");
-    console.log("");
+export function loadConfig(customConfigPath = null) {
+  let configPath;
+  
+  if (customConfigPath) {
+    configPath = customConfigPath;
+  } else {
+    configPath = CONFIG_PATH;
+    // Try to auto-create config from example
+    const wasCreated = autoCreateConfig();
+    if (wasCreated) {
+      console.log("");
+      print.info(`Created config file from example: ${CONFIG_PATH}`);
+      print.info("Please edit the config file to customize your workspaces.");
+      console.log("");
+    }
   }
   
-  if (!existsSync(CONFIG_PATH)) {
-    print.error(`Config file not found: ${CONFIG_PATH}`);
-    print.info(`Create directory and copy example config:`);
-    console.log(`  mkdir -p ${CONFIG_DIR}`);
-    console.log(`  cp config.example.toml ${CONFIG_PATH}`);
+  if (!existsSync(configPath)) {
+    print.error(`Config file not found: ${configPath}`);
+    if (!customConfigPath) {
+      print.info(`Create directory and copy example config:`);
+      console.log(`  mkdir -p ${CONFIG_DIR}`);
+      console.log(`  cp config.example.toml ${CONFIG_PATH}`);
+    }
     process.exit(1);
   }
   
-  const rawConfig = Bun.TOML.parse(readFileSync(CONFIG_PATH, "utf-8"));
+  const rawConfig = Bun.TOML.parse(readFileSync(configPath, "utf-8"));
   return expandConfigEnvVars(rawConfig);
 }
 
 /**
  * Saves the workspace configuration to the TOML file.
  * @param {Object} config - The configuration object to save.
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export function saveConfig(config) {
-  if (!existsSync(CONFIG_DIR)) {
+export function saveConfig(config, customConfigPath = null) {
+  const configPath = customConfigPath || CONFIG_PATH;
+  
+  if (!existsSync(CONFIG_DIR) && !customConfigPath) {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
-  writeFileSync(CONFIG_PATH, Bun.TOML.stringify(config));
+  writeFileSync(configPath, Bun.TOML.stringify(config));
   print.status("Configuration saved");
 }
 

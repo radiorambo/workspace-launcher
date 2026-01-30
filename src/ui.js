@@ -12,12 +12,13 @@ import { addWorkspace, editWorkspace, deleteWorkspace } from "./management.js";
  * @param {string} preSelected - Optional pre-selected IDs (for CLI args)
  * @param {boolean} dryRun - Whether to run in dry-run mode
  * @param {boolean} verbose - Whether to run in verbose mode
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = false, verbose = false) {
+export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = false, verbose = false, customConfigPath = null) {
   setDryRun(dryRun);
   setVerbose(verbose);
   
-  const config = loadConfig();
+  const config = loadConfig(customConfigPath);
   
   // Validate config and show warnings
   const validation = validateConfig(config);
@@ -108,12 +109,13 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
   process.exit(0);
 }
 
-async function viewConfig() {
+async function viewConfig(customConfigPath = null) {
+  const configPath = customConfigPath || CONFIG_PATH;
   console.log("");
-  print.info(`Config file: ${CONFIG_PATH}`);
+  print.info(`Config file: ${configPath}`);
   console.log("");
   try {
-    const content = readFileSync(CONFIG_PATH, "utf-8");
+    const content = readFileSync(configPath, "utf-8");
     console.log(content);
   } catch (error) {
     print.error("Failed to read config file");
@@ -122,9 +124,10 @@ async function viewConfig() {
 
 /**
  * Displays the main menu and handles user selection.
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export async function showMenu() {
-  const config = loadConfig();
+export async function showMenu(customConfigPath = null) {
+  const config = loadConfig(customConfigPath);
   const workspaceCount = config.workspaces?.length || 0;
 
   console.log("");
@@ -145,27 +148,27 @@ export async function showMenu() {
 
   switch (choice) {
     case "1":
-      await selectAndLaunchWorkspaces();
+      await selectAndLaunchWorkspaces(null, false, false, customConfigPath);
       break;
     case "2":
-      await addWorkspace();
-      await showMenu();
+      await addWorkspace(customConfigPath);
+      await showMenu(customConfigPath);
       break;
     case "3":
-      await editWorkspace();
-      await showMenu();
+      await editWorkspace(customConfigPath);
+      await showMenu(customConfigPath);
       break;
     case "4":
-      await deleteWorkspace();
-      await showMenu();
+      await deleteWorkspace(customConfigPath);
+      await showMenu(customConfigPath);
       break;
     case "5":
-      await viewConfig();
-      await showMenu();
+      await viewConfig(customConfigPath);
+      await showMenu(customConfigPath);
       break;
     case "6":
-      await openConfigInEditor();
-      await showMenu();
+      await openConfigInEditor(customConfigPath);
+      await showMenu(customConfigPath);
       break;
     case "7":
       console.log("");
@@ -174,6 +177,6 @@ export async function showMenu() {
       process.exit(0);
     default:
       print.error("Invalid option");
-      await showMenu();
+      await showMenu(customConfigPath);
   }
 }

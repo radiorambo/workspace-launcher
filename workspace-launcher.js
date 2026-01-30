@@ -31,6 +31,7 @@ Usage:
   wl add                      Add a new workspace
   wl edit                     Edit an existing workspace
   wl delete                   Delete workspace (supports multiple: 1,3,5 or 1-3)
+  wl --config <path>, -c <path>  Use custom config file
   wl --version, -V            Show version
   wl --help, -h               Show this help message
 
@@ -48,34 +49,51 @@ if (args.includes("--version") || args.includes("-V")) {
   process.exit(0);
 }
 
+// Parse --config / -c flag
+let customConfigPath = null;
+const configIndex = args.indexOf("--config");
+if (configIndex === -1) {
+  const shortConfigIndex = args.indexOf("-c");
+  if (shortConfigIndex !== -1) {
+    customConfigPath = args[shortConfigIndex + 1];
+  }
+} else {
+  customConfigPath = args[configIndex + 1];
+}
+
 // Check for flags
 const dryRun = args.includes("--dry-run");
 const verbose = args.includes("-v") || args.includes("--verbose");
 
-// Remove flags from args for processing
-const cleanArgs = args.filter(arg => !arg.startsWith("-"));
+// Remove flags and config path from args for processing
+const cleanArgs = args.filter((arg, index) => {
+  if (arg === "--config" || arg === "-c") return false;
+  const prevArg = args[index - 1];
+  if (prevArg === "--config" || prevArg === "-c") return false;
+  return !arg.startsWith("-");
+});
 
 // Route to appropriate function
 if (cleanArgs[0] === "launch") {
-  await selectAndLaunchWorkspaces(cleanArgs[1] || null, dryRun, verbose);
+  await selectAndLaunchWorkspaces(cleanArgs[1] || null, dryRun, verbose, customConfigPath);
 } else if (cleanArgs[0] === "add") {
   if (dryRun) {
     console.log(`${colors.gray}[DRY RUN] Would open add workspace dialog${colors.reset}`);
     process.exit(0);
   }
-  await addWorkspace();
+  await addWorkspace(customConfigPath);
 } else if (cleanArgs[0] === "edit") {
   if (dryRun) {
     console.log(`${colors.gray}[DRY RUN] Would open edit workspace dialog${colors.reset}`);
     process.exit(0);
   }
-  await editWorkspace();
+  await editWorkspace(customConfigPath);
 } else if (cleanArgs[0] === "delete") {
   if (dryRun) {
     console.log(`${colors.gray}[DRY RUN] Would open delete workspace dialog${colors.reset}`);
     process.exit(0);
   }
-  await deleteWorkspace();
+  await deleteWorkspace(customConfigPath);
 } else {
-  await showMenu();
+  await showMenu(customConfigPath);
 }

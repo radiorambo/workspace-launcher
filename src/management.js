@@ -6,9 +6,10 @@ import { print, loadConfig, saveConfig, getUserInput, sanitizeInput, parseSelect
 
 /**
  * Interactively prompts the user to add a new workspace.
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export async function addWorkspace() {
-  const config = loadConfig();
+export async function addWorkspace(customConfigPath = null) {
+  const config = loadConfig(customConfigPath);
   const newId = Math.max(...config.workspaces.map((w) => w.id), 0) + 1;
 
   console.log("");
@@ -70,7 +71,7 @@ export async function addWorkspace() {
   }
 
   config.workspaces.push(newWorkspace);
-  saveConfig(config);
+  saveConfig(config, customConfigPath);
 
   console.log("");
   print.info("Workspace added successfully:");
@@ -86,9 +87,10 @@ export async function addWorkspace() {
 
 /**
  * Interactively prompts the user to edit an existing workspace.
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export async function editWorkspace() {
-  const config = loadConfig();
+export async function editWorkspace(customConfigPath = null) {
+  const config = loadConfig(customConfigPath);
 
   console.log("");
   print.info("Edit Workspace");
@@ -227,7 +229,7 @@ export async function editWorkspace() {
   }
 
   config.workspaces[workspaceIndex] = workspace;
-  saveConfig(config);
+  saveConfig(config, customConfigPath);
 
   console.log("");
   print.info("Workspace updated successfully:");
@@ -243,9 +245,10 @@ export async function editWorkspace() {
 
 /**
  * Interactively prompts the user to delete one or more workspaces.
+ * @param {string} customConfigPath - Optional custom config file path
  */
-export async function deleteWorkspace() {
-  const config = loadConfig();
+export async function deleteWorkspace(customConfigPath = null) {
+  const config = loadConfig(customConfigPath);
 
   console.log("");
   print.info("Delete Workspace");
@@ -316,7 +319,7 @@ export async function deleteWorkspace() {
   }
 
   if (deletedWorkspaces.length > 0) {
-    saveConfig(config);
+    saveConfig(config, customConfigPath);
     console.log("");
     print.info("Successfully deleted:");
     deletedWorkspaces.reverse().forEach((workspace) => {
