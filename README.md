@@ -15,13 +15,9 @@ A powerful, interactive CLI tool built with Bun.js to streamline your workflow. 
   - **Bookmark Folders**: Opens all bookmarks from a Chrome/Brave bookmarks folder.
 - **Workspace Management**: Add, edit, and delete workspaces directly from the CLI.
 - **TOML Configuration**: Simple and portable configuration file.
-
-## 🛠️ Prerequisites
-
-- **[Bun.js](https://bun.sh/)**: The fast JavaScript runtime.
-- **[Brave Browser](https://brave.com/)**: Used for launching websites and PWAs (installed via Flatpak).
-- **[GNOME Papers (Evince)](https://apps.gnome.org/Papers/)**: Used for opening PDFs (installed via Flatpak).
-- **Linux OS**: Currently optimized for Linux environments using Flatpak.
+- **Dry Run Mode**: Preview commands without execution.
+- **Verbose Mode**: Detailed output for debugging.
+- **CLI Arguments**: Bypass the menu for quick access.
 
 ## 📦 Installation
 
