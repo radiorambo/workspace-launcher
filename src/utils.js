@@ -125,9 +125,10 @@ export function loadConfig() {
   // Try to auto-create config from example
   const wasCreated = autoCreateConfig();
   if (wasCreated) {
+    console.log("");
     print.info(`Created config file from example: ${CONFIG_PATH}`);
-    print.info("Please edit the config file and run again.");
-    process.exit(0);
+    print.info("Please edit the config file to customize your workspaces.");
+    console.log("");
   }
   
   if (!existsSync(CONFIG_PATH)) {

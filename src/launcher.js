@@ -29,31 +29,56 @@ export function setVerbose(value) {
 }
 
 /**
- * Executes a command or logs it in dry run mode
- * @param {string[]} commandParts - Command parts to execute
- * @param {string} displayName - Name to display for the command
+ * Parses a command string into an array of arguments, handling quoted strings
+ * @param {string} command - The command string to parse
+ * @returns {string[]} - Array of command parts
  */
-async function executeCommand(commandParts, displayName) {
-  if (isDryRun) {
-    print.dryRun(`Would execute: ${commandParts.join(" ")}`);
-    return;
+function parseCommandString(command) {
+  if (!command) return [];
+  
+  const parts = [];
+  let current = "";
+  let inSingleQuotes = false;
+  let inDoubleQuotes = false;
+  let escapeNext = false;
+  
+  for (const char of command) {
+    if (escapeNext) {
+      current += char;
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === "\\") {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === "'" && !inDoubleQuotes) {
+      inSingleQuotes = !inSingleQuotes;
+      continue;
+    }
+    
+    if (char === '"' && !inSingleQuotes) {
+      inDoubleQuotes = !inDoubleQuotes;
+      continue;
+    }
+    
+    if (char === " " && !inSingleQuotes && !inDoubleQuotes) {
+      if (current) {
+        parts.push(current);
+        current = "";
+      }
+    } else {
+      current += char;
+    }
   }
   
-  try {
-    const shell = $`${commandParts}`;
-    if (!isVerbose) {
-      shell.nothrow().quiet();
-    } else {
-      shell.nothrow();
-    }
-    await shell;
-    print.status(`Launched: ${displayName}`);
-  } catch (error) {
-    print.error(`Failed to launch: ${displayName}`);
-    if (isVerbose) {
-      console.error(error);
-    }
+  if (current) {
+    parts.push(current);
   }
+  
+  return parts;
 }
 
 /**
@@ -122,8 +147,8 @@ export async function launchWorkspace(workspace, config) {
       // Get browser command from config, fallback to xdg-open
       const browserCommand = config.settings?.bookmarks_open_in || "xdg-open";
       
-      // Split command and remove empty parts (handles multiple spaces)
-      const commandParts = browserCommand.split(" ").filter((p) => p.trim() !== "");
+      // Parse command string handling quoted paths
+      const commandParts = parseCommandString(browserCommand);
       const isXdgOpen = commandParts[0].endsWith("xdg-open");
 
       if (isDryRun) {
