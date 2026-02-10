@@ -235,34 +235,15 @@ export async function openConfigInEditor(customConfigPath = null) {
     return;
   }
   
-  try {
-    // Try common editors
-    const editors = ["$EDITOR", "code", "nano", "vim", "gedit", "gnome-text-editor"];
-    
-    for (const editor of editors) {
-      try {
-        if (editor === "$EDITOR") {
-          if (process.env.EDITOR) {
-            await $`${process.env.EDITOR} ${configPath}`.nothrow();
-            print.status("Config opened in editor");
-            return;
-          }
-        } else {
-          await $`${editor} ${configPath}`.nothrow().quiet();
-          print.status("Config opened in editor");
-          return;
-        }
-      } catch {
-        // Try next editor
-        continue;
-      }
+  try {    
+    if (process.env.EDITOR) {
+      await $`${process.env.EDITOR} ${configPath}`.nothrow();
+      print.status("Config opened in editor");
+      return;
+    } else {
+      print.error("EDITOR environment variable is not set.");
     }
-    
-    // Fallback: just display the file
-    print.info("Could not open editor. Displaying config file:");
-    console.log(readFileSync(configPath, "utf-8"));
   } catch (error) {
     print.error("Failed to open config file");
-    console.log(readFileSync(configPath, "utf-8"));
   }
 }
