@@ -29,6 +29,9 @@ bookmarks_open_in = "flatpak run com.brave.Browser --profile-directory=Default -
 id = 1
 name = "Example Workspace"
 commands = [
+    # For paths with spaces, use quotes around the FULL path (recommended)
+  "codium -n \"/home/user/folder/internal notes/note 1.md\"",
+    
   # Open websites in browser
   "flatpak run com.brave.Browser --profile-directory=Default --new-window https://github.com",
   "flatpak run com.brave.Browser --profile-directory=Default --new-window https://stackoverflow.com",
