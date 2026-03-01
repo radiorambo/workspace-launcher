@@ -2,7 +2,9 @@
  * Workspace management functions (add, edit, delete)
  */
 
-import { print, loadConfig, saveConfig, getUserInput, sanitizeInput, parseSelection, validateWorkspaceName, validateCommand, CONFIG_PATH } from "./utils.js";
+import { input, select, confirm } from "@inquirer/prompts";
+import chalk from "chalk";
+import { print, loadConfig, saveConfig, sanitizeInput, parseSelection, validateWorkspaceName, validateCommand, CONFIG_PATH } from "./utils.js";
 
 /**
  * Interactively prompts the user to add a new workspace.
@@ -17,36 +19,26 @@ export async function addWorkspace(customConfigPath = null) {
   console.log("");
 
   // Get workspace name with validation
-  let name = "";
-  while (true) {
-    process.stdout.write(`${print.colors.cyan}Workspace name: ${print.colors.reset}`);
-    const input = sanitizeInput(await getUserInput());
-    const validation = validateWorkspaceName(input, config.workspaces);
-    
-    if (validation.valid) {
-      name = input.trim();
-      break;
-    } else {
-      print.error(validation.error);
-    }
-  }
+  const name = await input({
+    message: "Workspace name:",
+    validate: (value) => {
+      const validation = validateWorkspaceName(value, config.workspaces);
+      return validation.valid ? true : validation.error;
+    },
+  });
 
   // Get commands
   const commands = [];
-  print.cyan("Enter commands (press Enter with empty line to finish):");
+  print.cyan("Enter commands (leave empty and press Enter to finish):");
   while (true) {
-    process.stdout.write(`  Command: `);
-    const cmd = sanitizeInput(await getUserInput());
+    const cmd = sanitizeInput(await input({ message: "  Command:" }));
     if (!cmd) break;
     
     const validation = validateCommand(cmd);
     if (validation.warning) {
       print.error(validation.warning);
-      process.stdout.write(`  Continue with this command? (y/n): `);
-      const confirm = (await getUserInput()).toLowerCase();
-      if (confirm !== "y" && confirm !== "yes") {
-        continue;
-      }
+      const shouldContinue = await confirm({ message: "Continue with this command?" });
+      if (!shouldContinue) continue;
     }
     
     commands.push(cmd);
@@ -56,12 +48,13 @@ export async function addWorkspace(customConfigPath = null) {
   console.log("");
   print.info("Bookmarks folder (optional):");
   print.cyan("  Format: 'Bookmarks bar/folder/subfolder' or 'Other bookmarks/folder'");
-  process.stdout.write(`  Folder path (or press Enter to skip): `);
-  const bookmarksFolder = sanitizeInput(await getUserInput());
+  const bookmarksFolder = sanitizeInput(await input({
+    message: "Folder path (or press Enter to skip):",
+  }));
 
   const newWorkspace = {
     id: newId,
-    name,
+    name: name.trim(),
     commands,
   };
 
@@ -75,7 +68,7 @@ export async function addWorkspace(customConfigPath = null) {
 
   console.log("");
   print.info("Workspace added successfully:");
-  console.log(`  ${print.colors.green}•${print.colors.reset} ${newId}. ${name}`);
+  console.log(`  ${chalk.green("•")} ${newId}. ${name.trim()}`);
   if (commands.length > 0) {
     print.status(`Added: ${commands.length} command(s)`);
   }
@@ -103,11 +96,8 @@ export async function editWorkspace(customConfigPath = null) {
   });
 
   console.log("");
-  process.stdout.write(
-    `${print.colors.yellow}Enter workspace ID to edit: ${print.colors.reset}`
-  );
-  const input = sanitizeInput(await getUserInput());
-  const id = parseInt(input);
+  const idInput = sanitizeInput(await input({ message: "Enter workspace ID to edit:" }));
+  const id = parseInt(idInput);
 
   if (isNaN(id)) {
     print.error("Invalid workspace ID");
@@ -129,8 +119,9 @@ export async function editWorkspace(customConfigPath = null) {
   console.log("");
 
   // Edit name
-  process.stdout.write(`${print.colors.cyan}New name (press Enter to keep "${workspace.name}"): ${print.colors.reset}`);
-  const newName = sanitizeInput(await getUserInput());
+  const newName = sanitizeInput(await input({
+    message: `New name (press Enter to keep "${workspace.name}"):`,
+  }));
   if (newName) {
     const validation = validateWorkspaceName(newName, config.workspaces.filter(w => w.id !== id));
     if (validation.valid) {
@@ -153,73 +144,47 @@ export async function editWorkspace(customConfigPath = null) {
   }
 
   console.log("");
-  print.cyan("Command options:");
-  console.log("  1. Keep current commands");
-  console.log("  2. Replace all commands");
-  console.log("  3. Add more commands");
-  console.log("  4. Clear all commands");
-  process.stdout.write(`${print.colors.yellow}Select option: ${print.colors.reset}`);
-  const cmdOption = await getUserInput();
+  const cmdOption = await select({
+    message: "Command options:",
+    choices: [
+      { name: "Keep current commands", value: "keep" },
+      { name: "Replace all commands", value: "replace" },
+      { name: "Add more commands", value: "add" },
+      { name: "Clear all commands", value: "clear" },
+    ],
+  });
 
-  switch (cmdOption) {
-    case "2": // Replace
-      workspace.commands = [];
-      print.cyan("Enter new commands (press Enter with empty line to finish):");
-      while (true) {
-        process.stdout.write(`  Command: `);
-        const cmd = sanitizeInput(await getUserInput());
-        if (!cmd) break;
-        
-        const validation = validateCommand(cmd);
-        if (validation.warning) {
-          print.error(validation.warning);
-          process.stdout.write(`  Continue with this command? (y/n): `);
-          const confirm = (await getUserInput()).toLowerCase();
-          if (confirm !== "y" && confirm !== "yes") {
-            continue;
-          }
-        }
-        
-        workspace.commands.push(cmd);
+  if (cmdOption === "replace" || cmdOption === "add") {
+    if (cmdOption === "replace") workspace.commands = [];
+    const label = cmdOption === "replace" ? "Enter new commands" : "Enter additional commands";
+    print.cyan(`${label} (leave empty and press Enter to finish):`);
+    while (true) {
+      const cmd = sanitizeInput(await input({ message: "  Command:" }));
+      if (!cmd) break;
+      
+      const validation = validateCommand(cmd);
+      if (validation.warning) {
+        print.error(validation.warning);
+        const shouldContinue = await confirm({ message: "Continue with this command?" });
+        if (!shouldContinue) continue;
       }
-      break;
-
-    case "3": // Add more
-      print.cyan("Enter additional commands (press Enter with empty line to finish):");
-      while (true) {
-        process.stdout.write(`  Command: `);
-        const cmd = sanitizeInput(await getUserInput());
-        if (!cmd) break;
-        
-        const validation = validateCommand(cmd);
-        if (validation.warning) {
-          print.error(validation.warning);
-          process.stdout.write(`  Continue with this command? (y/n): `);
-          const confirm = (await getUserInput()).toLowerCase();
-          if (confirm !== "y" && confirm !== "yes") {
-            continue;
-          }
-        }
-        
-        workspace.commands.push(cmd);
-      }
-      break;
-
-    case "4": // Clear
-      workspace.commands = [];
-      print.status("Commands cleared");
-      break;
-
-    default:
-      print.info("Keeping current commands");
+      
+      workspace.commands.push(cmd);
+    }
+  } else if (cmdOption === "clear") {
+    workspace.commands = [];
+    print.status("Commands cleared");
+  } else {
+    print.info("Keeping current commands");
   }
 
   // Edit bookmarks folder
   console.log("");
   print.info(`Current bookmarks folder: ${workspace.bookmarks_folder || "(none)"}`);
   print.cyan("  Format: 'Bookmarks bar/folder/subfolder' or 'Other bookmarks/folder'");
-  process.stdout.write(`  New folder path (press Enter to keep, 'clear' to remove): `);
-  const newBookmarksFolder = sanitizeInput(await getUserInput());
+  const newBookmarksFolder = sanitizeInput(await input({
+    message: "New folder path (press Enter to keep, 'clear' to remove):",
+  }));
   
   if (newBookmarksFolder.toLowerCase() === "clear") {
     delete workspace.bookmarks_folder;
@@ -233,7 +198,7 @@ export async function editWorkspace(customConfigPath = null) {
 
   console.log("");
   print.info("Workspace updated successfully:");
-  console.log(`  ${print.colors.green}•${print.colors.reset} ${workspace.id}. ${workspace.name}`);
+  console.log(`  ${chalk.green("•")} ${workspace.id}. ${workspace.name}`);
   if (workspace.commands?.length > 0) {
     print.status(`Commands: ${workspace.commands.length}`);
   }
@@ -260,12 +225,11 @@ export async function deleteWorkspace(customConfigPath = null) {
   });
 
   console.log("");
-  process.stdout.write(
-    `${print.colors.yellow}Enter workspace ID(s) to delete (e.g., 1,3,5 or 1-3): ${print.colors.reset}`
-  );
-  const input = sanitizeInput(await getUserInput());
+  const idInput = sanitizeInput(await input({
+    message: "Enter workspace ID(s) to delete (e.g., 1,3,5 or 1-3):",
+  }));
 
-  const idsToDelete = parseSelection(input);
+  const idsToDelete = parseSelection(idInput);
 
   if (idsToDelete.length === 0) {
     print.error("No valid workspace IDs provided");
@@ -295,14 +259,13 @@ export async function deleteWorkspace(customConfigPath = null) {
   console.log("");
   print.info("The following workspaces will be deleted:");
   workspacesToDelete.forEach((workspace) => {
-    console.log(`  ${print.colors.red}•${print.colors.reset} ${workspace.id}. ${workspace.name}`);
+    console.log(`  ${chalk.red("•")} ${workspace.id}. ${workspace.name}`);
   });
 
   console.log("");
-  process.stdout.write(`${print.colors.red}Are you sure? (yes/no): ${print.colors.reset}`);
-  const confirmation = (await getUserInput()).toLowerCase();
+  const confirmed = await confirm({ message: "Are you sure?", default: false });
 
-  if (confirmation !== "yes") {
+  if (!confirmed) {
     print.info("Deletion cancelled");
     console.log("");
     return;
@@ -324,7 +287,7 @@ export async function deleteWorkspace(customConfigPath = null) {
     print.info("Successfully deleted:");
     deletedWorkspaces.reverse().forEach((workspace) => {
       console.log(
-        `  ${print.colors.green}•${print.colors.reset} ${workspace.id}. ${workspace.name}`
+        `  ${chalk.green("•")} ${workspace.id}. ${workspace.name}`
       );
     });
   }

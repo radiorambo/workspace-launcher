@@ -8,96 +8,56 @@
  * @version 0.3.0
  */
 
+import { Command } from "commander";
 import { showMenu, selectAndLaunchWorkspaces } from "./src/ui.js";
 import { addWorkspace, editWorkspace, deleteWorkspace } from "./src/management.js";
-import { setupGracefulShutdown, VERSION, colors } from "./src/utils.js";
+import { setupGracefulShutdown, VERSION } from "./src/utils.js";
 
 // Setup graceful shutdown
 setupGracefulShutdown();
 
-// Parse command line arguments
-const args = process.argv.slice(2);
+const program = new Command();
 
-// Show help
-if (args.includes("--help") || args.includes("-h")) {
-  console.log(`
-${colors.cyan}Workspace Launcher v${VERSION}${colors.reset}
+program
+  .name("wl")
+  .description("An interactive CLI tool to launch workspaces with custom commands")
+  .version(`Workspace Launcher v${VERSION}`, "-V, --version")
+  .option("-c, --config <path>", "Use custom config file");
 
-Usage:
-  wl                          Show interactive menu
-  wl launch                   Launch workspace (supports multiple: 1,3,5 or 1-3)
-  wl launch <keyword>         Launch workspace by keyword (e.g., wl launch math)
-  wl launch --dry-run         Preview what would be launched without executing
-  wl launch -v                Launch with verbose output
-  wl add                      Add a new workspace
-  wl edit                     Edit an existing workspace
-  wl delete                   Delete workspace (supports multiple: 1,3,5 or 1-3)
-  wl --config <path>, -c <path>  Use custom config file
-  wl --version, -V            Show version
-  wl --help, -h               Show this help message
+program
+  .command("launch [selection]")
+  .description("Launch workspace (supports: 1,3,5 or 1-3 or keyword)")
+  .option("--dry-run", "Preview what would be launched without executing")
+  .option("-v, --verbose", "Launch with verbose output")
+  .action(async (selection, opts) => {
+    const globalOpts = program.opts();
+    await selectAndLaunchWorkspaces(selection || null, opts.dryRun || false, opts.verbose || false, globalOpts.config || null);
+  });
 
-Selection formats:
-  1,3,5       Select workspaces 1, 3, and 5
-  1-3         Select workspaces 1, 2, and 3
-  1,3-5,7     Select workspaces 1, 3, 4, 5, and 7
-  math        Launch workspace with keyword "math"
-`);
-  process.exit(0);
-}
+program
+  .command("add")
+  .description("Add a new workspace")
+  .action(async () => {
+    await addWorkspace(program.opts().config || null);
+  });
 
-// Show version
-if (args.includes("--version") || args.includes("-V")) {
-  console.log(`${colors.cyan}Workspace Launcher v${VERSION}${colors.reset}`);
-  process.exit(0);
-}
+program
+  .command("edit")
+  .description("Edit an existing workspace")
+  .action(async () => {
+    await editWorkspace(program.opts().config || null);
+  });
 
-// Parse --config / -c flag
-let customConfigPath = null;
-const configIndex = args.indexOf("--config");
-if (configIndex === -1) {
-  const shortConfigIndex = args.indexOf("-c");
-  if (shortConfigIndex !== -1) {
-    customConfigPath = args[shortConfigIndex + 1];
-  }
-} else {
-  customConfigPath = args[configIndex + 1];
-}
+program
+  .command("delete")
+  .description("Delete workspace (supports: 1,3,5 or 1-3)")
+  .action(async () => {
+    await deleteWorkspace(program.opts().config || null);
+  });
 
-// Check for flags
-const dryRun = args.includes("--dry-run");
-const verbose = args.includes("-v") || args.includes("--verbose");
-
-// Remove flags and config path from args for processing
-const cleanArgs = args.filter((arg, index) => {
-  if (arg === "--config" || arg === "-c") return false;
-  const prevArg = args[index - 1];
-  if (prevArg === "--config" || prevArg === "-c") return false;
-  return !arg.startsWith("-");
+// Default action — show interactive menu
+program.action(async () => {
+  await showMenu(program.opts().config || null);
 });
 
-// Route to appropriate function
-if (cleanArgs[0] === "launch") {
-  // Join remaining args to support multi-word names like "dsa learning"
-  const selection = cleanArgs.slice(1).join(" ") || null;
-  await selectAndLaunchWorkspaces(selection, dryRun, verbose, customConfigPath);
-} else if (cleanArgs[0] === "add") {
-  if (dryRun) {
-    console.log(`${colors.gray}[DRY RUN] Would open add workspace dialog${colors.reset}`);
-    process.exit(0);
-  }
-  await addWorkspace(customConfigPath);
-} else if (cleanArgs[0] === "edit") {
-  if (dryRun) {
-    console.log(`${colors.gray}[DRY RUN] Would open edit workspace dialog${colors.reset}`);
-    process.exit(0);
-  }
-  await editWorkspace(customConfigPath);
-} else if (cleanArgs[0] === "delete") {
-  if (dryRun) {
-    console.log(`${colors.gray}[DRY RUN] Would open delete workspace dialog${colors.reset}`);
-    process.exit(0);
-  }
-  await deleteWorkspace(customConfigPath);
-} else {
-  await showMenu(customConfigPath);
-}
+program.parse();

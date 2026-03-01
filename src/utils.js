@@ -4,36 +4,25 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "fs";
 import { join } from "path";
+import chalk from "chalk";
 
 // Version constant
 export const VERSION = "0.3.0";
 
-// Colors for terminal output
-export const colors = {
-  green: "\x1b[0;32m",
-  red: "\x1b[0;31m",
-  yellow: "\x1b[1;33m",
-  blue: "\x1b[0;34m",
-  cyan: "\x1b[0;36m",
-  magenta: "\x1b[0;35m",
-  gray: "\x1b[0;90m",
-  reset: "\x1b[0m",
-};
-
 export const print = {
-  status: (msg) => console.log(`${colors.green}[✓]${colors.reset} ${msg}`),
-  error: (msg) => console.log(`${colors.red}[✗]${colors.reset} ${msg}`),
-  info: (msg) => console.log(`${colors.yellow}[i]${colors.reset} ${msg}`),
+  status: (msg) => console.log(`${chalk.green("[✓]")} ${msg}`),
+  error: (msg) => console.log(`${chalk.red("[✗]")} ${msg}`),
+  info: (msg) => console.log(`${chalk.yellow("[i]")} ${msg}`),
   workspace: (num, msg, hasCommands = true) => {
-    const color = hasCommands ? colors.green : colors.yellow;
-    console.log(`${colors.blue}[${num}]${colors.reset} ${color}${msg}${colors.reset}`);
+    const color = hasCommands ? chalk.green : chalk.yellow;
+    console.log(`${chalk.blue(`[${num}]`)} ${color(msg)}`);
   },
-  cyan: (msg) => console.log(`${colors.cyan}${msg}${colors.reset}`),
-  gray: (msg) => console.log(`${colors.gray}${msg}${colors.reset}`),
+  cyan: (msg) => console.log(chalk.cyan(msg)),
+  gray: (msg) => console.log(chalk.gray(msg)),
   progress: (current, total, msg) => {
-    console.log(`${colors.magenta}[${current}/${total}]${colors.reset} ${msg}`);
+    console.log(`${chalk.magenta(`[${current}/${total}]`)} ${msg}`);
   },
-  dryRun: (msg) => console.log(`${colors.gray}[DRY RUN]${colors.reset} ${msg}`),
+  dryRun: (msg) => console.log(`${chalk.gray("[DRY RUN]")} ${msg}`),
 };
 
 // Configuration paths
@@ -221,18 +210,6 @@ export function validateConfig(config) {
 }
 
 /**
- * Helper function to get user input from stdin.
- * @returns {Promise<string>} The user's input.
- */
-export async function getUserInput() {
-  return new Promise((resolve) => {
-    process.stdin.once("data", (data) => {
-      resolve(data.toString().trim());
-    });
-  });
-}
-
-/**
  * Sanitizes user input to prevent injection
  * @param {string} input - Raw user input
  * @returns {string} - Sanitized input
@@ -364,7 +341,7 @@ export function validateCommand(cmd) {
   const dangerousPatterns = [
     /^rm\s+-rf\s+\//,
     />\s*\/dev\/null/,
-    /:\(\)\{\s*:\|\:&\s*;\s*\}/, // Fork bomb
+    /:\(\)\{\s*:\|:\&\s*;\s*\}/, // Fork bomb
   ];
   
   for (const pattern of dangerousPatterns) {

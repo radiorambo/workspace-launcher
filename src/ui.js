@@ -3,7 +3,9 @@
  */
 
 import { readFileSync } from "fs";
-import { print, loadConfig, getUserInput, sanitizeInput, parseSelection, resolveWorkspaceByKeyword, validateConfig, colors, VERSION, CONFIG_PATH } from "./utils.js";
+import { select, input } from "@inquirer/prompts";
+import chalk from "chalk";
+import { print, loadConfig, sanitizeInput, parseSelection, resolveWorkspaceByKeyword, validateConfig, VERSION, CONFIG_PATH } from "./utils.js";
 import { launchWorkspace, setDryRun, setVerbose, openConfigInEditor } from "./launcher.js";
 import { addWorkspace, editWorkspace, deleteWorkspace } from "./management.js";
 
@@ -24,13 +26,13 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
   const validation = validateConfig(config);
   if (!validation.valid) {
     print.error("Configuration errors:");
-    validation.errors.forEach(err => console.log(`  ${colors.red}•${colors.reset} ${err}`));
+    validation.errors.forEach(err => console.log(`  ${chalk.red("•")} ${err}`));
     console.log("");
     process.exit(1);
   }
   if (validation.warnings.length > 0) {
     print.info("Configuration warnings:");
-    validation.warnings.forEach(warn => console.log(`  ${colors.yellow}•${colors.reset} ${warn}`));
+    validation.warnings.forEach(warn => console.log(`  ${chalk.yellow("•")} ${warn}`));
     console.log("");
   }
   
@@ -48,7 +50,7 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
 
   workspaces.forEach((workspace) => {
     const hasContent = (workspace.commands?.length > 0) || workspace.bookmarks_folder;
-    const keyword = workspace.keyword ? ` ${colors.gray}(${workspace.keyword})${colors.reset}` : "";
+    const keyword = workspace.keyword ? ` ${chalk.gray(`(${workspace.keyword})`)}` : "";
     print.workspace(workspace.id, workspace.name + keyword, hasContent);
   });
 
@@ -81,7 +83,7 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
         console.log("");
         print.info("Available workspaces:");
         workspaces.forEach((w) => {
-          const kw = w.keyword ? ` ${colors.gray}(${w.keyword})${colors.reset}` : "";
+          const kw = w.keyword ? ` ${chalk.gray(`(${w.keyword})`)}` : "";
           print.workspace(w.id, w.name + kw, true);
         });
         console.log("");
@@ -91,11 +93,9 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
     }
   } else {
     console.log("");
-    process.stdout.write(
-      `${colors.yellow}Enter workspace number or name to launch (e.g., 1,3,4 or math): ${colors.reset}`
-    );
-
-    const selection = sanitizeInput(await getUserInput());
+    const selection = sanitizeInput(await input({
+      message: "Enter workspace number or name to launch (e.g., 1,3,4 or math):",
+    }));
     const isNumeric = /^[\d,\-\s]+$/.test(selection);
     
     if (isNumeric) {
@@ -134,7 +134,7 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
     }
     launchedWorkspaces.forEach((workspace) => {
       console.log(
-        `  ${colors.green}•${colors.reset} ${workspace.id}. ${workspace.name}`
+        `  ${chalk.green("•")} ${workspace.id}. ${workspace.name}`
       );
     });
   }
@@ -176,49 +176,48 @@ export async function showMenu(customConfigPath = null) {
   print.cyan(`Workspace Launcher (v${VERSION})`);
   print.gray(`${workspaceCount} workspace(s) configured`);
   console.log("");
-  console.log("  1. Launch workspace");
-  console.log("  2. Add new workspace");
-  console.log("  3. Edit workspace");
-  console.log("  4. Delete workspace");
-  console.log("  5. View TOML config file");
-  console.log("  6. Open config in editor");
-  console.log("  7. Exit");
-  console.log("");
-  process.stdout.write(`${colors.yellow}Select option: ${colors.reset}`);
 
-  const choice = await getUserInput();
+  const choice = await select({
+    message: "Select option:",
+    choices: [
+      { name: "Launch workspace", value: "launch" },
+      { name: "Add new workspace", value: "add" },
+      { name: "Edit workspace", value: "edit" },
+      { name: "Delete workspace", value: "delete" },
+      { name: "View TOML config file", value: "view" },
+      { name: "Open config in editor", value: "open" },
+      { name: "Exit", value: "exit" },
+    ],
+  });
 
   switch (choice) {
-    case "1":
+    case "launch":
       await selectAndLaunchWorkspaces(null, false, false, customConfigPath);
       break;
-    case "2":
+    case "add":
       await addWorkspace(customConfigPath);
       await showMenu(customConfigPath);
       break;
-    case "3":
+    case "edit":
       await editWorkspace(customConfigPath);
       await showMenu(customConfigPath);
       break;
-    case "4":
+    case "delete":
       await deleteWorkspace(customConfigPath);
       await showMenu(customConfigPath);
       break;
-    case "5":
+    case "view":
       await viewConfig(customConfigPath);
       await showMenu(customConfigPath);
       break;
-    case "6":
+    case "open":
       await openConfigInEditor(customConfigPath);
       await showMenu(customConfigPath);
       break;
-    case "7":
+    case "exit":
       console.log("");
       print.status("Goodbye!");
       console.log("");
       process.exit(0);
-    default:
-      print.error("Invalid option");
-      await showMenu(customConfigPath);
   }
 }
