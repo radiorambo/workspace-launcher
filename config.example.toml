@@ -4,6 +4,7 @@
 # Each workspace has:
 #   - id: unique number
 #   - name: display name
+#   - keyword: (optional) short alias for CLI launch (e.g., wl launch math)
 #   - commands: array of shell commands to execute
 #   - bookmarks_folder: (optional) path to Chrome bookmarks folder to open
 #
@@ -28,10 +29,11 @@ bookmarks_open_in = "flatpak run com.brave.Browser --profile-directory=Default -
 [[workspaces]]
 id = 1
 name = "Example Workspace"
+keyword = "example"
 commands = [
-    # For paths with spaces, use quotes around the FULL path (recommended)
+  # For paths with spaces, use quotes around the FULL path (recommended)
   "codium -n \"/home/user/folder/internal notes/note 1.md\"",
-    
+
   # Open websites in browser
   "flatpak run com.brave.Browser --profile-directory=Default --new-window https://github.com",
   "flatpak run com.brave.Browser --profile-directory=Default --new-window https://stackoverflow.com",
@@ -63,9 +65,8 @@ commands = []
 [[workspaces]]
 id = 3
 name = "Workspace with Bookmarks"
-commands = [
-  "code ~/projects/my-project",
-]
+keyword = "bookmarks"
+commands = ["code ~/projects/my-project"]
 # Opens all bookmarks from "Bookmarks bar/test" folder in Chrome
 # Folder path format: "Bookmarks bar/folder/subfolder" or "Other bookmarks/folder"
 bookmarks_folder = "Bookmarks bar/test"

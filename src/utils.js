@@ -278,6 +278,19 @@ export function parseSelection(selection) {
 }
 
 /**
+ * Resolves a workspace by its keyword (case-insensitive exact match)
+ * @param {string} keyword - The keyword to search for
+ * @param {Object[]} workspaces - Array of workspace objects
+ * @returns {Object|null} - Matching workspace or null
+ */
+export function resolveWorkspaceByKeyword(keyword, workspaces) {
+  if (!keyword || !workspaces) return null;
+  
+  const query = keyword.toLowerCase();
+  return workspaces.find(w => w.keyword?.toLowerCase() === query) || null;
+}
+
+/**
  * Strips inline comments from a command string
  * @param {string} cmd - Command that may contain inline comments
  * @returns {string} - Command without comments

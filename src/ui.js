@@ -3,7 +3,7 @@
  */
 
 import { readFileSync } from "fs";
-import { print, loadConfig, getUserInput, sanitizeInput, parseSelection, validateConfig, colors, VERSION, CONFIG_PATH } from "./utils.js";
+import { print, loadConfig, getUserInput, sanitizeInput, parseSelection, resolveWorkspaceByKeyword, validateConfig, colors, VERSION, CONFIG_PATH } from "./utils.js";
 import { launchWorkspace, setDryRun, setVerbose, openConfigInEditor } from "./launcher.js";
 import { addWorkspace, editWorkspace, deleteWorkspace } from "./management.js";
 
@@ -48,39 +48,81 @@ export async function selectAndLaunchWorkspaces(preSelected = null, dryRun = fal
 
   workspaces.forEach((workspace) => {
     const hasContent = (workspace.commands?.length > 0) || workspace.bookmarks_folder;
-    print.workspace(workspace.id, workspace.name, hasContent);
+    const keyword = workspace.keyword ? ` ${colors.gray}(${workspace.keyword})${colors.reset}` : "";
+    print.workspace(workspace.id, workspace.name + keyword, hasContent);
   });
 
-  let selectedIds;
+  let selectedWorkspaces = [];
+  let notFoundIds = [];
   
   if (preSelected) {
-    selectedIds = parseSelection(preSelected);
-    if (selectedIds.length === 0) {
-      print.error("No valid workspace IDs provided");
-      process.exit(1);
+    // Check if selection looks like numbers (e.g. "1,3,5" or "1-3")
+    const isNumeric = /^[\d,\-\s]+$/.test(preSelected);
+    
+    if (isNumeric) {
+      const selectedIds = parseSelection(preSelected);
+      if (selectedIds.length === 0) {
+        print.error("No valid workspace IDs provided");
+        process.exit(1);
+      }
+      for (const id of selectedIds) {
+        const workspace = workspaces.find((w) => w.id === id);
+        if (workspace) {
+          selectedWorkspaces.push(workspace);
+        } else {
+          notFoundIds.push(id);
+        }
+      }
+    } else {
+      // Treat as workspace keyword
+      const match = resolveWorkspaceByKeyword(preSelected, workspaces);
+      if (!match) {
+        print.error(`No workspace with keyword "${preSelected}"`);
+        console.log("");
+        print.info("Available workspaces:");
+        workspaces.forEach((w) => {
+          const kw = w.keyword ? ` ${colors.gray}(${w.keyword})${colors.reset}` : "";
+          print.workspace(w.id, w.name + kw, true);
+        });
+        console.log("");
+        process.exit(1);
+      }
+      selectedWorkspaces = [match];
     }
   } else {
     console.log("");
     process.stdout.write(
-      `${colors.yellow}Enter workspace numbers to launch (e.g., 1,3,4 or 1-3): ${colors.reset}`
+      `${colors.yellow}Enter workspace number or name to launch (e.g., 1,3,4 or math): ${colors.reset}`
     );
 
     const selection = sanitizeInput(await getUserInput());
-    selectedIds = parseSelection(selection);
+    const isNumeric = /^[\d,\-\s]+$/.test(selection);
+    
+    if (isNumeric) {
+      const selectedIds = parseSelection(selection);
+      for (const id of selectedIds) {
+        const workspace = workspaces.find((w) => w.id === id);
+        if (workspace) {
+          selectedWorkspaces.push(workspace);
+        } else {
+          notFoundIds.push(id);
+        }
+      }
+    } else {
+      const match = resolveWorkspaceByKeyword(selection, workspaces);
+      if (!match) {
+        print.error(`No workspace with keyword "${selection}"`);
+        process.exit(1);
+      }
+      selectedWorkspaces = [match];
+    }
   }
 
   const launchedWorkspaces = [];
-  const notFoundIds = [];
 
-  for (const id of selectedIds) {
-    const workspace = workspaces.find((w) => w.id === id);
-    if (workspace) {
-      await launchWorkspace(workspace, config);
-      launchedWorkspaces.push(workspace);
-    } else {
-      print.error(`Workspace #${id} not found`);
-      notFoundIds.push(id);
-    }
+  for (const workspace of selectedWorkspaces) {
+    await launchWorkspace(workspace, config);
+    launchedWorkspaces.push(workspace);
   }
 
   console.log("");

@@ -26,6 +26,7 @@ ${colors.cyan}Workspace Launcher v${VERSION}${colors.reset}
 Usage:
   wl                          Show interactive menu
   wl launch                   Launch workspace (supports multiple: 1,3,5 or 1-3)
+  wl launch <keyword>         Launch workspace by keyword (e.g., wl launch math)
   wl launch --dry-run         Preview what would be launched without executing
   wl launch -v                Launch with verbose output
   wl add                      Add a new workspace
@@ -39,6 +40,7 @@ Selection formats:
   1,3,5       Select workspaces 1, 3, and 5
   1-3         Select workspaces 1, 2, and 3
   1,3-5,7     Select workspaces 1, 3, 4, 5, and 7
+  math        Launch workspace with keyword "math"
 `);
   process.exit(0);
 }
@@ -75,7 +77,9 @@ const cleanArgs = args.filter((arg, index) => {
 
 // Route to appropriate function
 if (cleanArgs[0] === "launch") {
-  await selectAndLaunchWorkspaces(cleanArgs[1] || null, dryRun, verbose, customConfigPath);
+  // Join remaining args to support multi-word names like "dsa learning"
+  const selection = cleanArgs.slice(1).join(" ") || null;
+  await selectAndLaunchWorkspaces(selection, dryRun, verbose, customConfigPath);
 } else if (cleanArgs[0] === "add") {
   if (dryRun) {
     console.log(`${colors.gray}[DRY RUN] Would open add workspace dialog${colors.reset}`);
