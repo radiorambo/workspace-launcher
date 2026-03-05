@@ -4,29 +4,42 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import chalk from "chalk";
+import { homedir } from "os";
 
-export const print = {
-  status: (msg) => console.log(`${chalk.green("[✓]")} ${msg}`),
-  error: (msg) => console.log(`${chalk.red("[✗]")} ${msg}`),
-  info: (msg) => console.log(`${chalk.yellow("[i]")} ${msg}`),
-  workspace: (num, msg, hasCommands = true) => {
-    const color = hasCommands ? chalk.green : chalk.yellow;
-    console.log(`${chalk.blue(`[${num}]`)} ${color(msg)}`);
-  },
-  cyan: (msg) => console.log(chalk.cyan(msg)),
-  gray: (msg) => console.log(chalk.gray(msg)),
-  progress: (current, total, msg) => {
-    console.log(`${chalk.magenta(`[${current}/${total}]`)} ${msg}`);
-  },
-  dryRun: (msg) => console.log(`${chalk.gray("[DRY RUN]")} ${msg}`),
+// ANSI escape codes for coloring
+const colors = {
+  reset: "\x1b[0m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  magenta: "\x1b[35m",
+  cyan: "\x1b[36m",
+  gray: "\x1b[90m",
 };
 
+export const print = {
+  status: (msg) => console.log(`${colors.green}[✓]${colors.reset} ${msg}`),
+  error: (msg) => console.log(`${colors.red}[✗]${colors.reset} ${msg}`),
+  info: (msg) => console.log(`${colors.yellow}[i]${colors.reset} ${msg}`),
+  workspace: (num, msg, hasCommands = true) => {
+    const color = hasCommands ? colors.green : colors.yellow;
+    console.log(`${colors.blue}[${num}]${colors.reset} ${color}${msg}${colors.reset}`);
+  },
+  cyan: (msg) => console.log(`${colors.cyan}${msg}${colors.reset}`),
+  gray: (msg) => console.log(`${colors.gray}${msg}${colors.reset}`),
+  progress: (current, total, msg) => {
+    console.log(`${colors.magenta}[${current}/${total}]${colors.reset} ${msg}`);
+  },
+  dryRun: (msg) => console.log(`${colors.gray}[DRY RUN]${colors.reset} ${msg}`),
+};
+
+export const color = colors;
+
 // Configuration paths
-export const CONFIG_DIR = join(
-  process.env.XDG_CONFIG_HOME || join(process.env.HOME, ".config"),
-  "workspace-launcher"
-);
+const getHome = () => process.env.HOME || homedir() || "/tmp";
+const configBase = process.env.XDG_CONFIG_HOME || join(getHome(), ".config");
+export const CONFIG_DIR = join(configBase, "workspace-launcher");
 export const CONFIG_PATH = join(CONFIG_DIR, "config.toml");
 
 /**
