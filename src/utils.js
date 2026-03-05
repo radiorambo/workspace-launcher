@@ -6,35 +6,33 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-// ANSI escape codes for coloring
-const colors = {
-  reset: "\x1b[0m",
-  green: "\x1b[32m",
-  red: "\x1b[31m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan: "\x1b[36m",
-  gray: "\x1b[90m",
-};
+import { styleText } from "util";
 
 export const print = {
-  status: (msg) => console.log(`${colors.green}[✓]${colors.reset} ${msg}`),
-  error: (msg) => console.log(`${colors.red}[✗]${colors.reset} ${msg}`),
-  info: (msg) => console.log(`${colors.yellow}[i]${colors.reset} ${msg}`),
+  status: (msg) => console.log(`${styleText('green', '[✓]')} ${msg}`),
+  error: (msg) => console.log(`${styleText('red', '[✗]')} ${msg}`),
+  info: (msg) => console.log(`${styleText('yellow', '[i]')} ${msg}`),
   workspace: (num, msg, hasCommands = true) => {
-    const color = hasCommands ? colors.green : colors.yellow;
-    console.log(`${colors.blue}[${num}]${colors.reset} ${color}${msg}${colors.reset}`);
+    const color = hasCommands ? 'green' : 'yellow';
+    console.log(`${styleText('blue', `[${num}]`)} ${styleText(color, msg)}`);
   },
-  cyan: (msg) => console.log(`${colors.cyan}${msg}${colors.reset}`),
-  gray: (msg) => console.log(`${colors.gray}${msg}${colors.reset}`),
+  cyan: (msg) => console.log(styleText('cyan', msg)),
+  gray: (msg) => console.log(styleText('gray', msg)),
   progress: (current, total, msg) => {
-    console.log(`${colors.magenta}[${current}/${total}]${colors.reset} ${msg}`);
+    console.log(`${styleText('magenta', `[${current}/${total}]`)} ${msg}`);
   },
-  dryRun: (msg) => console.log(`${colors.gray}[DRY RUN]${colors.reset} ${msg}`),
+  dryRun: (msg) => console.log(`${styleText('gray', '[DRY RUN]')} ${msg}`),
 };
 
-export const color = colors;
+export const color = {
+  green: (msg) => styleText('green', msg),
+  red: (msg) => styleText('red', msg),
+  yellow: (msg) => styleText('yellow', msg),
+  blue: (msg) => styleText('blue', msg),
+  magenta: (msg) => styleText('magenta', msg),
+  cyan: (msg) => styleText('cyan', msg),
+  gray: (msg) => styleText('gray', msg),
+};
 
 // Configuration paths
 const getHome = () => process.env.HOME || homedir() || "/tmp";

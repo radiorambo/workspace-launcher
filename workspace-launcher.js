@@ -65,7 +65,7 @@ Options:
       console.log("");
       workspaces.forEach((workspace) => {
         const hasContent = (workspace.commands?.length > 0) || workspace.bookmarks_folder;
-        const keyword = workspace.keyword ? ` ${color.gray}(${workspace.keyword})${color.reset}` : "";
+        const keyword = workspace.keyword ? ` ${color.gray(`(${workspace.keyword})`)}` : "";
         print.workspace(workspace.id, workspace.name + keyword, hasContent);
       });
       console.log("");
@@ -97,7 +97,7 @@ Options:
         console.log("");
         print.info("Available workspaces:");
         workspaces.forEach((w) => {
-          const kw = w.keyword ? ` ${color.gray}(${w.keyword})${color.reset}` : "";
+          const kw = w.keyword ? ` ${color.gray(`(${w.keyword})`)}` : "";
           print.workspace(w.id, w.name + kw, true);
         });
         console.log("");
@@ -120,7 +120,7 @@ Options:
         print.info("Successfully launched:");
       }
       launchedWorkspaces.forEach((workspace) => {
-        console.log(`  ${color.green}•${color.reset} ${workspace.id}. ${workspace.name}`);
+        console.log(`  ${color.green('•')} ${workspace.id}. ${workspace.name}`);
       });
     }
 
