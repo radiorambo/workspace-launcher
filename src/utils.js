@@ -2,12 +2,9 @@
  * Utility functions for workspace-launcher
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import chalk from "chalk";
-
-// Version constant
-export const VERSION = "0.3.0";
 
 export const print = {
   status: (msg) => console.log(`${chalk.green("[✓]")} ${msg}`),
@@ -31,7 +28,6 @@ export const CONFIG_DIR = join(
   "workspace-launcher"
 );
 export const CONFIG_PATH = join(CONFIG_DIR, "config.toml");
-export const EXAMPLE_CONFIG_PATH = join(process.cwd(), "config.example.toml");
 
 /**
  * Expands environment variables in a string
@@ -41,12 +37,10 @@ export const EXAMPLE_CONFIG_PATH = join(process.cwd(), "config.example.toml");
 export function expandEnvVars(str) {
   if (!str || typeof str !== "string") return str;
   
-  // Handle ${VAR} syntax
   str = str.replace(/\$\{([^}]+)\}/g, (match, varName) => {
     return process.env[varName] || match;
   });
   
-  // Handle $VAR syntax (at start or after space)
   str = str.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, varName) => {
     return process.env[varName] || match;
   });
@@ -60,7 +54,7 @@ export function expandEnvVars(str) {
  * @returns {Object} - Config with environment variables expanded
  */
 export function expandConfigEnvVars(config) {
-  const expanded = JSON.parse(JSON.stringify(config)); // Deep clone
+  const expanded = JSON.parse(JSON.stringify(config));
   
   if (expanded.settings) {
     for (const key in expanded.settings) {
@@ -85,141 +79,20 @@ export function expandConfigEnvVars(config) {
 }
 
 /**
- * Auto-creates config from example if it doesn't exist
- * @returns {boolean} - True if config was created, false if it already existed
- */
-export function autoCreateConfig() {
-  if (existsSync(CONFIG_PATH)) {
-    return false;
-  }
-  
-  if (!existsSync(EXAMPLE_CONFIG_PATH)) {
-    print.error(`Example config not found: ${EXAMPLE_CONFIG_PATH}`);
-    return false;
-  }
-  
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
-  }
-  
-  copyFileSync(EXAMPLE_CONFIG_PATH, CONFIG_PATH);
-  return true;
-}
-
-/**
  * Loads the workspace configuration from the TOML file.
  * @param {string} customConfigPath - Optional custom config file path
  * @returns {Object} The parsed configuration object.
- * @throws {Error} If the config file is not found.
  */
 export function loadConfig(customConfigPath = null) {
-  let configPath;
-  
-  if (customConfigPath) {
-    configPath = customConfigPath;
-  } else {
-    configPath = CONFIG_PATH;
-    // Try to auto-create config from example
-    const wasCreated = autoCreateConfig();
-    if (wasCreated) {
-      console.log("");
-      print.info(`Created config file from example: ${CONFIG_PATH}`);
-      print.info("Please edit the config file to customize your workspaces.");
-      console.log("");
-    }
-  }
+  const configPath = customConfigPath || CONFIG_PATH;
   
   if (!existsSync(configPath)) {
     print.error(`Config file not found: ${configPath}`);
-    if (!customConfigPath) {
-      print.info(`Create directory and copy example config:`);
-      console.log(`  mkdir -p ${CONFIG_DIR}`);
-      console.log(`  cp config.example.toml ${CONFIG_PATH}`);
-    }
     process.exit(1);
   }
   
   const rawConfig = Bun.TOML.parse(readFileSync(configPath, "utf-8"));
   return expandConfigEnvVars(rawConfig);
-}
-
-/**
- * Saves the workspace configuration to the TOML file.
- * @param {Object} config - The configuration object to save.
- * @param {string} customConfigPath - Optional custom config file path
- */
-export function saveConfig(config, customConfigPath = null) {
-  const configPath = customConfigPath || CONFIG_PATH;
-  
-  if (!existsSync(CONFIG_DIR) && !customConfigPath) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
-  }
-  writeFileSync(configPath, Bun.TOML.stringify(config));
-  print.status("Configuration saved");
-}
-
-/**
- * Validates the configuration structure
- * @param {Object} config - The configuration object
- * @returns {Object} - { valid: boolean, errors: string[], warnings: string[] }
- */
-export function validateConfig(config) {
-  const errors = [];
-  const warnings = [];
-  
-  if (!config) {
-    errors.push("Config is empty");
-    return { valid: false, errors, warnings };
-  }
-  
-  if (!Array.isArray(config.workspaces)) {
-    errors.push("workspaces must be an array");
-  } else {
-    // Check for duplicate IDs
-    const ids = config.workspaces.map(w => w.id);
-    const duplicates = ids.filter((item, index) => ids.indexOf(item) !== index);
-    if (duplicates.length > 0) {
-      errors.push(`Duplicate workspace IDs found: ${[...new Set(duplicates)].join(", ")}`);
-    }
-    
-    // Check each workspace
-    for (const workspace of config.workspaces) {
-      if (!workspace.id || typeof workspace.id !== "number") {
-        errors.push(`Workspace "${workspace.name || "unnamed"}" has invalid or missing ID`);
-      }
-      
-      if (!workspace.name || workspace.name.trim() === "") {
-        errors.push(`Workspace #${workspace.id} has empty name`);
-      }
-      
-      if (!workspace.commands && !workspace.bookmarks_folder) {
-        warnings.push(`Workspace "${workspace.name}" has no commands or bookmarks_folder`);
-      }
-      
-      if (workspace.commands && !Array.isArray(workspace.commands)) {
-        errors.push(`Workspace "${workspace.name}" commands must be an array`);
-      }
-    }
-  }
-  
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
-}
-
-/**
- * Sanitizes user input to prevent injection
- * @param {string} input - Raw user input
- * @returns {string} - Sanitized input
- */
-export function sanitizeInput(input) {
-  if (!input) return "";
-  // Remove control characters and limit length
-  return input
-    .replace(/[\x00-\x1F\x7F]/g, "") // Remove control characters
-    .substring(0, 1000); // Limit length
 }
 
 /**
@@ -235,7 +108,6 @@ export function parseSelection(selection) {
   
   for (const part of parts) {
     if (part.includes("-")) {
-      // Range format: "1-5"
       const [start, end] = part.split("-").map(s => parseInt(s.trim()));
       if (!isNaN(start) && !isNaN(end) && start <= end) {
         for (let i = start; i <= end; i++) {
@@ -243,7 +115,6 @@ export function parseSelection(selection) {
         }
       }
     } else {
-      // Single number
       const num = parseInt(part);
       if (!isNaN(num)) {
         ids.add(num);
@@ -275,7 +146,6 @@ export function resolveWorkspaceByKeyword(keyword, workspaces) {
 export function stripInlineComments(cmd) {
   if (!cmd) return "";
   
-  // Handle quoted strings to avoid stripping # inside quotes
   let result = "";
   let inSingleQuotes = false;
   let inDoubleQuotes = false;
@@ -296,64 +166,6 @@ export function stripInlineComments(cmd) {
   }
   
   return result.trim();
-}
-
-/**
- * Validates a workspace name
- * @param {string} name - The workspace name
- * @param {Object[]} existingWorkspaces - Existing workspaces to check for duplicates
- * @returns {Object} - { valid: boolean, error?: string }
- */
-export function validateWorkspaceName(name, existingWorkspaces = []) {
-  if (!name || name.trim() === "") {
-    return { valid: false, error: "Workspace name cannot be empty" };
-  }
-  
-  if (name.length > 100) {
-    return { valid: false, error: "Workspace name too long (max 100 characters)" };
-  }
-  
-  const trimmedName = name.trim();
-  const duplicate = existingWorkspaces.find(w => 
-    w.name.toLowerCase() === trimmedName.toLowerCase()
-  );
-  
-  if (duplicate) {
-    return { valid: false, error: `Workspace "${trimmedName}" already exists` };
-  }
-  
-  return { valid: true };
-}
-
-/**
- * Validates a command string
- * @param {string} cmd - The command to validate
- * @returns {Object} - { valid: boolean, warning?: string }
- */
-export function validateCommand(cmd) {
-  if (!cmd || cmd.trim() === "") {
-    return { valid: false };
-  }
-  
-  const trimmedCmd = cmd.trim();
-  
-  // Check for potentially dangerous commands
-  const dangerousPatterns = [
-    /^rm\s+-rf\s+\//,
-    />\s*\/dev\/null/,
-    /:\(\)\{\s*:\|:\&\s*;\s*\}/, // Fork bomb
-  ];
-  
-  for (const pattern of dangerousPatterns) {
-    if (pattern.test(trimmedCmd)) {
-      return { 
-        valid: true, 
-        warning: "This command may be dangerous. Please verify before saving." 
-      };
-    }
-  }
-  
-  return { valid: true };
 }
 
 /**

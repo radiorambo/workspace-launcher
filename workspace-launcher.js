@@ -2,62 +2,116 @@
 /**
  * Workspace Launcher
  *
- * An interactive CLI tool to launch workspaces with custom commands.
+ * A CLI tool to launch workspaces with custom commands.
  *
  * @author Zero
- * @version 0.3.0
  */
 
 import { Command } from "commander";
-import { showMenu, selectAndLaunchWorkspaces } from "./src/ui.js";
-import { addWorkspace, editWorkspace, deleteWorkspace } from "./src/management.js";
-import { setupGracefulShutdown, VERSION } from "./src/utils.js";
+import chalk from "chalk";
+import { launchWorkspace, setDryRun, setVerbose } from "./src/launcher.js";
+import { setupGracefulShutdown, loadConfig, parseSelection, resolveWorkspaceByKeyword, print } from "./src/utils.js";
 
-// Setup graceful shutdown
 setupGracefulShutdown();
 
 const program = new Command();
 
 program
   .name("wl")
-  .description("An interactive CLI tool to launch workspaces with custom commands")
-  .version(`Workspace Launcher v${VERSION}`, "-V, --version")
-  .option("-c, --config <path>", "Use custom config file");
-
-program
-  .command("launch [selection]")
-  .description("Launch workspace (supports: 1,3,5 or 1-3 or keyword)")
+  .description("A CLI tool to launch workspaces with custom commands")
+  .option("-c, --config <path>", "Use custom config file")
   .option("--dry-run", "Preview what would be launched without executing")
   .option("-v, --verbose", "Launch with verbose output")
+  .argument("[selection]", "Workspace ID(s) or keyword (e.g., 1,3,5 or 1-3 or math)")
   .action(async (selection, opts) => {
-    const globalOpts = program.opts();
-    await selectAndLaunchWorkspaces(selection || null, opts.dryRun || false, opts.verbose || false, globalOpts.config || null);
-  });
+    setDryRun(opts.dryRun || false);
+    setVerbose(opts.verbose || false);
 
-program
-  .command("add")
-  .description("Add a new workspace")
-  .action(async () => {
-    await addWorkspace(program.opts().config || null);
-  });
+    const config = loadConfig(opts.config || null);
+    const workspaces = config.workspaces;
 
-program
-  .command("edit")
-  .description("Edit an existing workspace")
-  .action(async () => {
-    await editWorkspace(program.opts().config || null);
-  });
+    if (opts.dryRun) {
+      console.log("");
+      print.info("DRY RUN MODE - No commands will be executed");
+    }
 
-program
-  .command("delete")
-  .description("Delete workspace (supports: 1,3,5 or 1-3)")
-  .action(async () => {
-    await deleteWorkspace(program.opts().config || null);
-  });
+    if (!selection) {
+      // No selection — list workspaces and exit
+      console.log("");
+      print.info(`Available Workspaces (${workspaces.length} total):`);
+      console.log("");
+      workspaces.forEach((workspace) => {
+        const hasContent = (workspace.commands?.length > 0) || workspace.bookmarks_folder;
+        const keyword = workspace.keyword ? ` ${chalk.gray(`(${workspace.keyword})`)}` : "";
+        print.workspace(workspace.id, workspace.name + keyword, hasContent);
+      });
+      console.log("");
+      process.exit(0);
+    }
 
-// Default action — show interactive menu
-program.action(async () => {
-  await showMenu(program.opts().config || null);
-});
+    // Resolve selection to workspaces
+    let selectedWorkspaces = [];
+    let notFoundIds = [];
+    const isNumeric = /^[\d,\-\s]+$/.test(selection);
+
+    if (isNumeric) {
+      const selectedIds = parseSelection(selection);
+      if (selectedIds.length === 0) {
+        print.error("No valid workspace IDs provided");
+        process.exit(1);
+      }
+      for (const id of selectedIds) {
+        const workspace = workspaces.find((w) => w.id === id);
+        if (workspace) {
+          selectedWorkspaces.push(workspace);
+        } else {
+          notFoundIds.push(id);
+        }
+      }
+    } else {
+      const match = resolveWorkspaceByKeyword(selection, workspaces);
+      if (!match) {
+        print.error(`No workspace with keyword "${selection}"`);
+        console.log("");
+        print.info("Available workspaces:");
+        workspaces.forEach((w) => {
+          const kw = w.keyword ? ` ${chalk.gray(`(${w.keyword})`)}` : "";
+          print.workspace(w.id, w.name + kw, true);
+        });
+        console.log("");
+        process.exit(1);
+      }
+      selectedWorkspaces = [match];
+    }
+
+    // Launch
+    const launchedWorkspaces = [];
+    for (const workspace of selectedWorkspaces) {
+      await launchWorkspace(workspace, config);
+      launchedWorkspaces.push(workspace);
+    }
+
+    console.log("");
+    if (launchedWorkspaces.length > 0) {
+      if (opts.dryRun) {
+        print.info("Planned to launch:");
+      } else {
+        print.info("Successfully launched:");
+      }
+      launchedWorkspaces.forEach((workspace) => {
+        console.log(`  ${chalk.green("•")} ${workspace.id}. ${workspace.name}`);
+      });
+    }
+
+    if (notFoundIds.length > 0) {
+      console.log("");
+      notFoundIds.forEach((id) => {
+        print.error(`Workspace #${id} not found`);
+      });
+    }
+
+    console.log("");
+    process.exit(0);
+  });
 
 program.parse();

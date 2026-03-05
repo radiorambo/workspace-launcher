@@ -3,7 +3,6 @@
  */
 
 import { $ } from "bun";
-import { readFileSync } from "fs";
 import { print, CONFIG_PATH, stripInlineComments } from "./utils.js";
 import { getBookmarksFilePath, getBookmarksFromFolder } from "./bookmarks.js";
 
@@ -93,21 +92,17 @@ export async function launchWorkspace(workspace, config) {
 
   const commands = workspace.commands || [];
   for (const cmd of commands) {
-    // Skip empty lines and lines starting with #
     if (!cmd || cmd.trim().startsWith("#")) continue;
     
-    // Strip inline comments
     const cleanCmd = stripInlineComments(cmd);
     if (!cleanCmd) continue;
 
-    // Use bash -c to properly handle commands with spaces and special characters
     try {
       if (isDryRun) {
         print.dryRun(`Would execute: ${cleanCmd}`);
         const displayName = cleanCmd.length > 50 ? cleanCmd.substring(0, 50) + "..." : cleanCmd;
         print.status(`Planned: ${displayName}`);
       } else {
-        // Use bash -c for proper shell command parsing
         const shell = $`bash -c ${cleanCmd}`;
         if (!isVerbose) {
           shell.nothrow().quiet();
@@ -144,10 +139,7 @@ export async function launchWorkspace(workspace, config) {
     if (bookmarks.length > 0) {
       print.info(`Opening ${bookmarks.length} bookmark(s) from: ${workspace.bookmarks_folder}`);
 
-      // Get browser command from config, fallback to xdg-open
       const browserCommand = config.settings?.bookmarks_open_in || "xdg-open";
-      
-      // Parse command string handling quoted paths
       const commandParts = parseCommandString(browserCommand);
       const isXdgOpen = commandParts[0].endsWith("xdg-open");
 
@@ -167,7 +159,6 @@ export async function launchWorkspace(workspace, config) {
       } else {
         try {
           if (isXdgOpen) {
-            // xdg-open only supports one URL at a time
             for (let i = 0; i < bookmarks.length; i++) {
               const bookmark = bookmarks[i];
               const fullCommand = [...commandParts, bookmark.url];
@@ -186,7 +177,6 @@ export async function launchWorkspace(workspace, config) {
               print.progress(i + 1, bookmarks.length, `Opened: ${displayName}`);
             }
           } else {
-            // Other browsers usually support multiple URLs (opening as tabs)
             const urls = bookmarks.map(b => b.url);
             const fullCommand = [...commandParts, ...urls];
             
@@ -198,7 +188,6 @@ export async function launchWorkspace(workspace, config) {
             }
             await shell;
 
-            // Print status for each bookmark
             for (let i = 0; i < bookmarks.length; i++) {
               const bookmark = bookmarks[i];
               const displayName = bookmark.name.length > 40
@@ -219,31 +208,5 @@ export async function launchWorkspace(workspace, config) {
       print.error(`No bookmarks found in folder: ${workspace.bookmarks_folder}`);
       print.info("Tip: Check the folder path in your config");
     }
-  }
-}
-
-/**
- * Opens the config file in the default editor
- * @param {string} customConfigPath - Optional custom config file path
- */
-export async function openConfigInEditor(customConfigPath = null) {
-  const configPath = customConfigPath || CONFIG_PATH;
-  print.info(`Opening config file: ${configPath}`);
-  
-  if (isDryRun) {
-    print.dryRun(`Would open: ${configPath}`);
-    return;
-  }
-  
-  try {    
-    if (process.env.EDITOR) {
-      await $`${process.env.EDITOR} ${configPath}`.nothrow();
-      print.status("Config opened in editor");
-      return;
-    } else {
-      print.error("EDITOR environment variable is not set.");
-    }
-  } catch (error) {
-    print.error("Failed to open config file");
   }
 }
